@@ -82,7 +82,7 @@
 
 ## ローカル検証環境
 
-Docker Compose で擬似マルチホスト環境（lb × 1、web × 2）を構築して動作確認する予定。
+Vagrant + VirtualBox で擬似マルチホスト環境（lb × 1、web × 2）を構築して動作確認する。
 
 ---
 
