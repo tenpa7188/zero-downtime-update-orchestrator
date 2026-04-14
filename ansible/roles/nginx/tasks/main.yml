@@ -1,3 +1,4 @@
+---
 - name: nginx をインストールする
   apt:
     name: "{{ nginx_package }}"
