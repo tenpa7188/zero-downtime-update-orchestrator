@@ -1,0 +1,6 @@
+- name: nginx をインストールする
+  apt:
+    name: "{{ nginx_package }}"
+    state: present
+    update_cache: false
+  become: true
