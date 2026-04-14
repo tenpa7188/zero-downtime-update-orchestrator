@@ -1,0 +1,6 @@
+---
+- name: nginx_conf_mod
+  service:
+    name: nginx
+    state: reloaded
+  become: true

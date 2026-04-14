@@ -1,0 +1,21 @@
+user www-data;
+worker_processes {{ nginx_worker_processes }};
+
+events {
+    worker_connections {{ nginx_worker_connections }};
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    server {
+        listen {{ nginx_port }};
+        server_name {{ inventory_hostname }};
+
+        location / {
+            root   {{ nginx_document_root }};
+            index  index.html;
+        }
+    }
+}
