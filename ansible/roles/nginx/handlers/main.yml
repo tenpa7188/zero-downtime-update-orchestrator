@@ -1,5 +1,5 @@
 ---
-- name: nginx_conf_mod
+- name: reload_nginx
   service:
     name: nginx
     state: reloaded
