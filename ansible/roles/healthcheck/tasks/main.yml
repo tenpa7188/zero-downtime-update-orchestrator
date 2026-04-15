@@ -1,0 +1,19 @@
+---
+- name: nginx サービスが起動しているか確認する
+  command: systemctl is-active nginx
+  register: nginx_status
+  changed_when: false
+  failed_when: false
+
+- name: nginx が active であることを確認する
+  assert:
+    that:
+      - nginx_status.stdout == 'active'
+    fail_msg: "nginx が起動していません"
+
+- name: HTTP レスポンスを確認する
+  uri:
+    url: "http://{{ ansible_host }}:{{ nginx_port }}/"
+    status_code: 200
+    timeout: 10
+  delegate_to: localhost

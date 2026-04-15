@@ -16,3 +16,9 @@
     backup: true
   become: true
   notify: reload_nginx
+
+- name: 古いバックアップを削除する（直近3世代のみ残す）
+  shell: |
+    ls -t /etc/nginx/nginx.conf.*~ 2>/dev/null | tail -n +4 | xargs rm -f
+  changed_when: false
+  become: true
