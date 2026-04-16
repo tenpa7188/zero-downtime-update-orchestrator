@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wsl -d Ubuntu -- bash -c \"cd /mnt/c/source/zero-downtime-update-orchestrator/ansible && echo '=== yamllint ===' && yamllint ./ && echo '=== ansible-lint ===' && ansible-lint ./\")"
+    ]
+  }
+}
