@@ -1,0 +1,3 @@
+---
+lb_host: lb01
+lb_action: drain

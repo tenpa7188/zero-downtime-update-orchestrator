@@ -1,0 +1,17 @@
+---
+- name: LB の upstream 設定を更新する
+  template:
+    src: upstream.conf.j2
+    dest: /etc/nginx/conf.d/upstream.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  delegate_to: lb01
+
+- name: LB の nginx を reload する
+  service:
+    name: nginx
+    state: reloaded
+  become: true
+  delegate_to: lb01
