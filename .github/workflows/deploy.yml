@@ -1,0 +1,67 @@
+---
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "デプロイ対象の環境を選択してください（dev / prod）"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 依存関係をインストール
+        run: pip install ansible
+
+      - name: SSH 秘密鍵を設定する
+        # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
+        # run: |
+        #   mkdir -p ~/.ssh
+        #   echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        #   chmod 600 ~/.ssh/id_rsa
+        run: echo "秘密鍵設定はローカル環境では省略"
+
+      - name: dry-run を実行
+        run: |
+          ansible-playbook ansible/playbooks/rolling_update.yml \
+            -i ansible/inventory/${{ github.event.inputs.environment }} \
+            --check --diff
+
+  approve:
+    needs: dry-run
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: 承認待ち
+        run: echo "承認されました。デプロイを開始します。"
+
+  deploy:
+    needs: approve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 依存関係をインストール
+        run: pip install ansible
+
+      - name: SSH 秘密鍵を設定する
+        # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
+        # run: |
+        #   mkdir -p ~/.ssh
+        #   echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        #   chmod 600 ~/.ssh/id_rsa
+        run: echo "秘密鍵設定はローカル環境では省略"
+
+      - name: デプロイを実行
+        run: |
+          ansible-playbook ansible/playbooks/rolling_update.yml \
+            -i ansible/inventory/${{ github.event.inputs.environment }}
