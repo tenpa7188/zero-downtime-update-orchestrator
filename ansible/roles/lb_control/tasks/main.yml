@@ -6,6 +6,7 @@
     owner: root
     group: root
     mode: "0644"
+    backup: true
   become: true
   delegate_to: lb01
 
@@ -16,14 +17,21 @@
     owner: root
     group: root
     mode: "0644"
+    backup: true
   become: true
   delegate_to: lb01
 
-- name: 古いバックアップを削除する（直近3世代のみ残す）
-  shell: |
-    ls -t /etc/nginx/conf.d/*.conf.*~ 2>/dev/null | tail -n +4 | xargs rm -f
-  changed_when: false
-  become: true
+- name: proxy.conf のバックアップ世代管理
+  include_tasks: backup_cleanup.yml
+  vars:
+    backup_pattern: /etc/nginx/conf.d/proxy.conf.*~
+    backup_keep: "{{ proxy_backup_generations }}"
+
+- name: upstream.conf のバックアップ世代管理
+  include_tasks: backup_cleanup.yml
+  vars:
+    backup_pattern: /etc/nginx/conf.d/upstream.conf.*~
+    backup_keep: "{{ upstream_backup_generations }}"
 
 - name: LB の nginx を reload する
   service:

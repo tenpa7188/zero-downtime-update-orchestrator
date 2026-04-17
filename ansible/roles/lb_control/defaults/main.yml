@@ -1,3 +1,6 @@
 ---
 lb_host: lb01
 lb_action: drain
+lb_listen_port: 80
+proxy_backup_generations: 3
+upstream_backup_generations: 9

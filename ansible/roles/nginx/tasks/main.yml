@@ -17,6 +17,16 @@
   become: true
   notify: reload_nginx
 
+- name: index.html を配置する
+  template:
+    src: index.html.j2
+    dest: "{{ nginx_document_root }}/index.html"
+    owner: www-data
+    group: www-data
+    mode: "0644"
+    backup: true
+  become: true
+
 - name: 古いバックアップを削除する（直近3世代のみ残す）
   shell: |
     ls -t /etc/nginx/nginx.conf.*~ 2>/dev/null | tail -n +4 | xargs rm -f

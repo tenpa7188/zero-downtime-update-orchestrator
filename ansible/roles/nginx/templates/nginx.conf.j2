@@ -10,13 +10,15 @@ http {
     default_type  application/octet-stream;
     include       /etc/nginx/conf.d/*.conf;
 
+{% if inventory_hostname in groups['web'] %}
     server {
         listen {{ nginx_port }};
         server_name {{ inventory_hostname }};
 
         location / {
             root   {{ nginx_document_root }};
-            index index.nginx-debian.html;
+            index index.html index.nginx-debian.html;
         }
     }
+{% endif %}
 }

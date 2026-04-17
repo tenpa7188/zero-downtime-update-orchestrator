@@ -4,6 +4,16 @@
   roles:
     - nginx
 
+- name: LB の初期プロキシ設定を行う
+  hosts: web
+  run_once: true
+  tasks:
+    - name: proxy.conf と upstream.conf を lb01 に配置する
+      include_role:
+        name: lb_control
+      vars:
+        lb_action: restore
+
 - name: ローリング更新
   hosts: web
   serial: 1
