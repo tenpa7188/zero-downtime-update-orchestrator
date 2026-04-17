@@ -37,5 +37,6 @@
   service:
     name: nginx
     state: reloaded
+  changed_when: false
   become: true
   delegate_to: lb01
