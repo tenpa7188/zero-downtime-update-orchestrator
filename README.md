@@ -35,13 +35,13 @@
 
 | ステップ | 内容 | 状態 |
 |---|---|---|
-| Step 1 | inventory 設計 + ansible.cfg + 接続確認 | 🔲 未着手 |
-| Step 2 | nginx role（インストール・冪等性） | 🔲 未着手 |
-| Step 3 | template + handler（設定管理・再起動制御） | 🔲 未着手 |
-| Step 4 | healthcheck role + update playbook + tags | 🔲 未着手 |
-| Step 5 | serial + lb_control（ローリング更新） | 🔲 未着手 |
+| Step 1 | inventory 設計 + ansible.cfg + 接続確認 | ✅ 完了 |
+| Step 2 | nginx role（インストール・冪等性） | ✅ 完了 |
+| Step 3 | template + handler（設定管理・再起動制御） | ✅ 完了 |
+| Step 4 | healthcheck role + update playbook + tags | ✅ 完了 |
+| Step 5 | serial + lb_control（ローリング更新） | ✅ 完了 |
 | Step 6 | Terraform による IaC 土台 | 🔲 未着手 |
-| Step 7 | GitHub Actions による CI/CD 土台 | 🔲 未着手 |
+| Step 7 | GitHub Actions による CI/CD 土台 | 🚧 進行中 |
 
 ---
 
