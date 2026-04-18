@@ -1,19 +1,20 @@
 ---
-- name: nginx サービスが起動しているか確認する
-  command: systemctl is-active nginx
-  register: nginx_status
+- name: Nginx サービスが起動しているか確認する
+  ansible.builtin.systemd:
+    name: nginx
+  register: healthcheck_nginx_service
   changed_when: false
   failed_when: false
   check_mode: false
 
-- name: nginx が active であることを確認する
-  assert:
+- name: Nginx が active であることを確認する
+  ansible.builtin.assert:
     that:
-      - nginx_status.stdout == 'active'
+      - healthcheck_nginx_service.status.ActiveState == 'active'
     fail_msg: "nginx が起動していません"
 
 - name: HTTP レスポンスを確認する
-  uri:
+  ansible.builtin.uri:
     url: "http://{{ ansible_host }}:{{ nginx_port }}/"
     status_code: 200
     timeout: 10

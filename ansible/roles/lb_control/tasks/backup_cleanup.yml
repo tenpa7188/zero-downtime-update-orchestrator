@@ -1,9 +1,13 @@
 ---
-- name: "{{ backup_pattern }} の古いバックアップを削除する（{{ backup_keep }}世代保持）"
-  shell: |
-    ls -t {{ backup_pattern }} 2>/dev/null \
-      | tail -n +{{ backup_keep | int + 1 }} \
-      | xargs rm -f
+- name: 古いバックアップを削除する
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      ls -t {{ backup_pattern }} 2>/dev/null \
+        | tail -n +{{ backup_keep | int + 1 }} \
+        | xargs -r rm -f
+    executable: /bin/bash
   changed_when: false
+  failed_when: false
   become: true
   delegate_to: lb01

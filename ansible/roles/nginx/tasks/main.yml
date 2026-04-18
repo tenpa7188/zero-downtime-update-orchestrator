@@ -1,13 +1,13 @@
 ---
-- name: nginx をインストールする
-  apt:
+- name: Nginx をインストールする
+  ansible.builtin.apt:
     name: "{{ nginx_package }}"
     state: present
     update_cache: false
   become: true
 
-- name: nginx の設定ファイルを配置する
-  template:
+- name: Nginx の設定ファイルを配置する
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
     owner: root
@@ -15,10 +15,10 @@
     mode: "0644"
     backup: true
   become: true
-  notify: reload_nginx
+  notify: Reload nginx
 
-- name: index.html を配置する
-  template:
+- name: Index.html を配置する
+  ansible.builtin.template:
     src: index.html.j2
     dest: "{{ nginx_document_root }}/index.html"
     owner: www-data
@@ -28,7 +28,13 @@
   become: true
 
 - name: 古いバックアップを削除する（直近3世代のみ残す）
-  shell: |
-    ls -t /etc/nginx/nginx.conf.*~ 2>/dev/null | tail -n +4 | xargs rm -f
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      ls -t /etc/nginx/nginx.conf.*~ 2>/dev/null \
+        | tail -n +4 \
+        | xargs -r rm -f
+    executable: /bin/bash
   changed_when: false
+  failed_when: false
   become: true

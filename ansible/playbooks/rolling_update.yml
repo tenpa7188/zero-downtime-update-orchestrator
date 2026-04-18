@@ -8,11 +8,11 @@
   hosts: web
   run_once: true
   tasks:
-    - name: proxy.conf と upstream.conf を lb01 に配置する
-      include_role:
+    - name: LB に proxy.conf・upstream.conf を配置する
+      ansible.builtin.include_role:
         name: lb_control
       vars:
-        lb_action: restore
+        lb_control_action: restore
 
 - name: ローリング更新
   hosts: web
@@ -21,21 +21,21 @@
 
   pre_tasks:
     - name: LB からサーバを切り離す
-      include_role:
+      ansible.builtin.include_role:
         name: lb_control
       vars:
-        lb_action: drain
+        lb_control_action: drain
 
   roles:
     - nginx
 
   post_tasks:
     - name: 動作確認
-      include_role:
+      ansible.builtin.include_role:
         name: healthcheck
 
     - name: LB にサーバを組み込む
-      include_role:
+      ansible.builtin.include_role:
         name: lb_control
       vars:
-        lb_action: restore
+        lb_control_action: restore

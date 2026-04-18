@@ -1,6 +1,6 @@
 ---
 - name: LB のプロキシ設定を配置する
-  template:
+  ansible.builtin.template:
     src: proxy.conf.j2
     dest: /etc/nginx/conf.d/proxy.conf
     owner: root
@@ -11,7 +11,7 @@
   delegate_to: lb01
 
 - name: LB の upstream 設定を更新する
-  template:
+  ansible.builtin.template:
     src: upstream.conf.j2
     dest: /etc/nginx/conf.d/upstream.conf
     owner: root
@@ -21,20 +21,20 @@
   become: true
   delegate_to: lb01
 
-- name: proxy.conf のバックアップ世代管理
-  include_tasks: backup_cleanup.yml
+- name: Proxy.conf のバックアップ世代管理
+  ansible.builtin.include_tasks: backup_cleanup.yml
   vars:
     backup_pattern: /etc/nginx/conf.d/proxy.conf.*~
-    backup_keep: "{{ proxy_backup_generations }}"
+    backup_keep: "{{ lb_control_proxy_backup_generations }}"
 
-- name: upstream.conf のバックアップ世代管理
-  include_tasks: backup_cleanup.yml
+- name: Upstream.conf のバックアップ世代管理
+  ansible.builtin.include_tasks: backup_cleanup.yml
   vars:
     backup_pattern: /etc/nginx/conf.d/upstream.conf.*~
-    backup_keep: "{{ upstream_backup_generations }}"
+    backup_keep: "{{ lb_control_upstream_backup_generations }}"
 
 - name: LB の nginx を reload する
-  service:
+  ansible.builtin.service:
     name: nginx
     state: reloaded
   changed_when: false

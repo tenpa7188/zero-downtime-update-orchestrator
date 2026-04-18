@@ -1,5 +1,5 @@
 server {
-    listen {{ lb_listen_port }};
+    listen {{ lb_control_listen_port }};
 
     location / {
         proxy_pass http://backend;

@@ -1,6 +1,6 @@
 upstream backend {
 {% for host in groups['web'] %}
   server {{ hostvars[host]['ansible_host'] }}:{{ nginx_port }}
-  {%- if lb_action == 'drain' and host == inventory_hostname %} down{% endif %};
+  {%- if lb_control_action == 'drain' and host == inventory_hostname %} down{% endif %};
 {% endfor %}
 }

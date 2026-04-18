@@ -1,5 +1,5 @@
 ---
-- name: nginx を更新して動作確認する
+- name: Nginx を更新して動作確認する
   hosts: web
   roles:
     - role: nginx
