@@ -40,3 +40,11 @@
   changed_when: false
   become: true
   delegate_to: lb01
+
+- name: ドレイン後の既存接続が抜けるのを待つ
+  ansible.builtin.pause:
+    seconds: "{{ lb_control_drain_wait }}"
+  when:
+    - lb_control_action == 'drain'
+    - lb_control_drain_wait | int > 0
+    - not ansible_check_mode
