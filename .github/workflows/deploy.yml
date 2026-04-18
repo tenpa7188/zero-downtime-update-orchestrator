@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Python 依存関係をインストール
-        run: pip install ansible
+        run: pip install -r requirements.txt
 
       - name: SSH 秘密鍵を設定する
         # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Python 依存関係をインストール
-        run: pip install ansible
+        run: pip install -r requirements.txt
 
       - name: SSH 秘密鍵を設定する
         # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
