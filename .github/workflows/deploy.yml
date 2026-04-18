@@ -63,5 +63,5 @@ jobs:
 
       - name: デプロイを実行
         run: |
-          ansible-playbook ansible/playbooks/rolling_update.yml \
-            -i ansible/inventory/${{ github.event.inputs.environment }}
+          cd ansible && ansible-playbook playbooks/rolling_update.yml \
+            -i inventory/${{ github.event.inputs.environment }}
