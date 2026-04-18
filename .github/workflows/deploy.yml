@@ -17,7 +17,7 @@ jobs:
   dry-run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Python 依存関係をインストール
         run: pip install -r requirements.txt
@@ -48,7 +48,7 @@ jobs:
     needs: approve
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Python 依存関係をインストール
         run: pip install -r requirements.txt
