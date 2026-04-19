@@ -19,8 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Python 依存関係をインストール
-        run: pip install -r requirements.txt
+#      - name: Python 依存関係をインストール
+#        run: pip install -r requirements.txt
 
       - name: SSH 秘密鍵を設定する
         # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
@@ -50,8 +50,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Python 依存関係をインストール
-        run: pip install -r requirements.txt
+#      - name: Python 依存関係をインストール
+#        run: pip install -r requirements.txt
 
       - name: SSH 秘密鍵を設定する
         # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
