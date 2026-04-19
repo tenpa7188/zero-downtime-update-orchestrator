@@ -38,7 +38,7 @@ jobs:
 
   approve:
     needs: dry-run
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment: production
     steps:
       - name: 承認待ち
@@ -46,7 +46,7 @@ jobs:
 
   deploy:
     needs: approve
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v5
 
