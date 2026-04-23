@@ -20,3 +20,4 @@
     timeout: 10
   delegate_to: localhost
   check_mode: false
+  when: not ansible_check_mode
