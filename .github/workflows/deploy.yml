@@ -2,6 +2,11 @@
 name: Deploy
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "ansible/**"
   workflow_dispatch:
     inputs:
       environment:
@@ -19,9 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-#      - name: Python 依存関係をインストール
-#        run: pip install -r requirements.txt
-
       - name: SSH 秘密鍵を設定する
         # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
         # run: |
@@ -33,11 +35,12 @@ jobs:
       - name: dry-run を実行
         run: |
           cd ansible && ansible-playbook playbooks/rolling_update.yml \
-            -i inventory/${{ github.event.inputs.environment }} \
+            -i inventory/${{ github.event.inputs.environment || 'dev' }} \
             --check --diff
 
   approve:
     needs: dry-run
+    if: github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
     environment: production
     steps:
@@ -46,12 +49,10 @@ jobs:
 
   deploy:
     needs: approve
+    if: github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v5
-
-#      - name: Python 依存関係をインストール
-#        run: pip install -r requirements.txt
 
       - name: SSH 秘密鍵を設定する
         # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
