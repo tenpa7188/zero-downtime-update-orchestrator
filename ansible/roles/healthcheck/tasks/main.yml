@@ -1,21 +1,21 @@
 ---
-- name: Nginx サービスが起動しているか確認する
+- name: サービスが起動しているか確認する
   ansible.builtin.systemd:
-    name: nginx
-  register: healthcheck_nginx_service
+    name: "{{ healthcheck_service }}"
+  register: healthcheck_service_status
   changed_when: false
   failed_when: false
   check_mode: false
 
-- name: Nginx が active であることを確認する
+- name: サービスが active であることを確認する
   ansible.builtin.assert:
     that:
-      - healthcheck_nginx_service.status.ActiveState == 'active'
-    fail_msg: "nginx が起動していません"
+      - healthcheck_service_status.status.ActiveState == 'active'
+    fail_msg: "{{ healthcheck_service }} が起動していません"
 
 - name: HTTP レスポンスを確認する
   ansible.builtin.uri:
-    url: "http://{{ ansible_host }}:{{ nginx_port }}/"
+    url: "http://{{ ansible_host }}:{{ healthcheck_port }}/"
     status_code: 200
     timeout: 10
   delegate_to: localhost

@@ -1,4 +1,17 @@
 ---
+- name: PPA 管理に必要なパッケージをインストールする
+  ansible.builtin.apt:
+    name: software-properties-common
+    state: present
+    update_cache: false
+  become: true
+
+# - name: Apache 用 PPA を追加する
+#   ansible.builtin.apt_repository:
+#     repo: ppa:ondrej/apache2
+#     state: present
+#   become: true
+
 - name: Apache をインストールする
   ansible.builtin.apt:
     name: "{{ apache_package }}{{ ('=' + apache_version) if apache_version else '' }}"
@@ -6,10 +19,40 @@
     update_cache: true
     allow_downgrade: true
   become: true
+  check_mode: false
+  when: not ansible_check_mode
 
-# TODO: ポート設定を配置する（Listen {{ apache_port }} に変更）
+- name: ports.conf を配置する
+  ansible.builtin.template:
+    src: ports.conf.j2
+    dest: /etc/apache2/ports.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  become: true
+  notify: Reload apache
 
-# TODO: index.html を配置する（templates/index.html.j2）
+- name: VirtualHost 設定を配置する
+  ansible.builtin.template:
+    src: vhost.conf.j2
+    dest: /etc/apache2/sites-available/000-default.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  become: true
+  notify: Reload apache
+
+- name: index.html を配置する
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: "{{ apache_document_root }}/index.html"
+    owner: www-data
+    group: www-data
+    mode: "0644"
+    backup: true
+  become: true
 
 - name: Apache を起動・自動起動有効にする
   ansible.builtin.service:
@@ -17,3 +60,4 @@
     state: started
     enabled: true
   become: true
+  when: not ansible_check_mode

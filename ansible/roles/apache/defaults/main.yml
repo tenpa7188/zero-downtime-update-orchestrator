@@ -1,5 +1,5 @@
 ---
 apache_package: apache2
-apache_version: "2.4.52-1ubuntu4"
-apache_port: 8080
+apache_version: ""
+apache_port: "{{ healthcheck_port }}"
 apache_document_root: /var/www/html

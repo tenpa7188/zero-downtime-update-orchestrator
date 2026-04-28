@@ -5,3 +5,4 @@
     state: reloaded
   changed_when: false
   become: true
+  when: not ansible_check_mode
