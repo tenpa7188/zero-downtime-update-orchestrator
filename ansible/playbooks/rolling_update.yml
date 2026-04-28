@@ -27,7 +27,7 @@
         lb_control_action: drain
 
   roles:
-    - nginx
+    - apache
 
   post_tasks:
     - name: 動作確認

@@ -1,0 +1,19 @@
+---
+- name: Apache をインストールする
+  ansible.builtin.apt:
+    name: "{{ apache_package }}{{ ('=' + apache_version) if apache_version else '' }}"
+    state: present
+    update_cache: true
+    allow_downgrade: true
+  become: true
+
+# TODO: ポート設定を配置する（Listen {{ apache_port }} に変更）
+
+# TODO: index.html を配置する（templates/index.html.j2）
+
+- name: Apache を起動・自動起動有効にする
+  ansible.builtin.service:
+    name: apache2
+    state: started
+    enabled: true
+  become: true
