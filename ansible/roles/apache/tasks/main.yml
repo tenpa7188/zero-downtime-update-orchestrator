@@ -14,7 +14,8 @@
 
 - name: Apache をインストールする
   ansible.builtin.apt:
-    name: "{{ apache_package }}{{ ('=' + apache_version) if apache_version else '' }}"
+    name: >-
+      {{ apache_package }}{{ ('=' + apache_version) if apache_version else '' }}
     state: present
     update_cache: true
     allow_downgrade: true
@@ -22,7 +23,7 @@
   check_mode: false
   when: not ansible_check_mode
 
-- name: ports.conf を配置する
+- name: Ports.conf を配置する
   ansible.builtin.template:
     src: ports.conf.j2
     dest: /etc/apache2/ports.conf
@@ -44,7 +45,7 @@
   become: true
   notify: Reload apache
 
-- name: index.html を配置する
+- name: Index.html を配置する
   ansible.builtin.template:
     src: index.html.j2
     dest: "{{ apache_document_root }}/index.html"
