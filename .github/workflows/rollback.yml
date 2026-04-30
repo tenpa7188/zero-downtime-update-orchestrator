@@ -1,0 +1,47 @@
+---
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "切り戻し対象の環境（dev / prod）"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+      rollback_version:
+        description: "切り戻し先の Apache バージョン（例: 2.4.52-1ubuntu4.19）"
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    runs-on: self-hosted
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: SSH 秘密鍵を設定する
+        run: echo "秘密鍵設定はローカル環境では省略"
+
+      - name: 切り戻しを実行する
+        run: |
+          cd ansible && ansible-playbook playbooks/rolling_update.yml \
+            -i inventory/${{ github.event.inputs.environment }} \
+            -e apache_version=${{ github.event.inputs.rollback_version }}
+
+      - name: group_vars を切り戻しバージョンに同期する
+        run: |
+          VERSION="${{ github.event.inputs.rollback_version }}"
+          ENV="${{ github.event.inputs.environment }}"
+          sed -i "s|^apache_version:.*|apache_version: \"${VERSION}\"|" \
+            ansible/inventory/${ENV}/group_vars/web.yml
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add ansible/inventory/${ENV}/group_vars/web.yml
+          git diff --cached --quiet || \
+            git commit -m "chore: apache_version を ${VERSION} に切り戻し [skip ci]"
+          git push

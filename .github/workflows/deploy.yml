@@ -17,6 +17,11 @@ on:
         options:
           - dev
           - prod
+      apache_version:
+        description: "インストールする Apache バージョン（空欄で group_vars の値を使用）"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   dry-run:
@@ -34,9 +39,13 @@ jobs:
 
       - name: dry-run を実行
         run: |
+          EXTRA_VARS=""
+          if [ -n "${{ github.event.inputs.apache_version }}" ]; then
+            EXTRA_VARS="-e apache_version=${{ github.event.inputs.apache_version }}"
+          fi
           cd ansible && ansible-playbook playbooks/rolling_update.yml \
             -i inventory/${{ github.event.inputs.environment || 'dev' }} \
-            --check --diff
+            --check --diff $EXTRA_VARS
 
   approve:
     needs: dry-run
@@ -64,5 +73,23 @@ jobs:
 
       - name: デプロイを実行
         run: |
+          EXTRA_VARS=""
+          if [ -n "${{ github.event.inputs.apache_version }}" ]; then
+            EXTRA_VARS="-e apache_version=${{ github.event.inputs.apache_version }}"
+          fi
           cd ansible && ansible-playbook playbooks/rolling_update.yml \
-            -i inventory/${{ github.event.inputs.environment }}
+            -i inventory/${{ github.event.inputs.environment }} $EXTRA_VARS
+
+      - name: group_vars を更新済みバージョンに同期する
+        if: github.event.inputs.apache_version != ''
+        run: |
+          VERSION="${{ github.event.inputs.apache_version }}"
+          ENV="${{ github.event.inputs.environment }}"
+          sed -i "s|^apache_version:.*|apache_version: \"${VERSION}\"|" \
+            ansible/inventory/${ENV}/group_vars/web.yml
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add ansible/inventory/${ENV}/group_vars/web.yml
+          git diff --cached --quiet || \
+            git commit -m "chore: apache_version を ${VERSION} に更新 [skip ci]"
+          git push
