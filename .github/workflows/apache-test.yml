@@ -1,0 +1,38 @@
+---
+name: Apache Version Modify Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "対象の環境（dev / prod）"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+      rollback_version:
+        description: "変更先の Apache バージョン（例: 2.4.52-1ubuntu4.19）"
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: self-hosted
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: group_vars のバージョンを変更する
+        run: |
+          VERSION="${{ github.event.inputs.rollback_version }}"
+          ENV="${{ github.event.inputs.environment }}"
+          sed -i "s|^apache_version:.*|apache_version: \"${VERSION}\"|" \
+            ansible/inventory/${ENV}/group_vars/web.yml
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add ansible/inventory/${ENV}/group_vars/web.yml
+          git diff --cached --quiet || \
+            git commit -m "chore: apache_version を ${VERSION} に切り戻し [skip ci]"
+          git push
