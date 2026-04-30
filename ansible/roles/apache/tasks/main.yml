@@ -6,11 +6,11 @@
     update_cache: false
   become: true
 
-- name: Apache 用 PPA を追加する
-  ansible.builtin.apt_repository:
-    repo: ppa:ondrej/apache2
-    state: present
-  become: true
+# - name: Apache 用 PPA を追加する
+#   ansible.builtin.apt_repository:
+#     repo: ppa:ondrej/apache2
+#     state: present
+#   become: true
 
 - name: Apache をインストールする
   ansible.builtin.apt:
