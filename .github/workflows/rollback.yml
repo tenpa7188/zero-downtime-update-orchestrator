@@ -21,6 +21,8 @@ jobs:
   rollback:
     runs-on: self-hosted
     environment: production
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
 
