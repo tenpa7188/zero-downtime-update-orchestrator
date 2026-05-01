@@ -1,4 +1,12 @@
+# Claude
+*settings.local.json
+
 # Vagrant
 .vagrant/
 
-*settings.local.json
+# terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+!.terraform.lock.hcl
+*.tfvars
