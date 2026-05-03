@@ -1,3 +1,10 @@
+locals {
+  common_tags = {
+    Environment = "prod"
+    ManagedBy   = "terraform"
+  }
+}
+
 # ----------------------------------------
 # VPC
 # ----------------------------------------
@@ -6,9 +13,9 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true
   enable_dns_hostnames = true
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.project_name}-vpc"
-  }
+  })
 }
 
 # ----------------------------------------
@@ -22,9 +29,9 @@ resource "aws_subnet" "public" {
   availability_zone       = "${var.aws_region}${["a", "c"][count.index]}"
   map_public_ip_on_launch = true
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.project_name}-public-${["a", "c"][count.index]}"
-  }
+  })
 }
 
 # ----------------------------------------
@@ -33,9 +40,9 @@ resource "aws_subnet" "public" {
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.project_name}-igw"
-  }
+  })
 }
 
 # ----------------------------------------
@@ -49,9 +56,9 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.main.id
   }
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.project_name}-rt-public"
-  }
+  })
 }
 
 resource "aws_route_table_association" "public" {
@@ -83,9 +90,9 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.project_name}-alb"
-  }
+  })
 }
 
 # ----------------------------------------
@@ -111,9 +118,9 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.project_name}-ec2"
-  }
+  })
 }
 
 # ----------------------------------------
@@ -129,9 +136,21 @@ resource "aws_instance" "web" {
   iam_instance_profile        = aws_iam_instance_profile.ec2_ssm.name
   associate_public_ip_address = true
 
-  tags = {
-    Name = "${var.project_name}-web0${count.index + 1}"
+  # 起動時に SSM Agent をインストールする（Ubuntu 22.04 はデフォルト未インストール）
+  user_data = <<-EOF
+    #!/bin/bash
+    snap install amazon-ssm-agent --classic
+    systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+    systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+  EOF
+
+  root_block_device {
+    encrypted = true
   }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-web0${count.index + 1}"
+  })
 }
 
 # ----------------------------------------
@@ -146,9 +165,9 @@ resource "aws_lb" "alb" {
 
   ip_address_type = "ipv4"
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.project_name}-alb"
-  }
+  })
 }
 
 resource "aws_lb_target_group" "alb" {
@@ -160,9 +179,9 @@ resource "aws_lb_target_group" "alb" {
 
   vpc_id = aws_vpc.main.id
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${var.project_name}-tg"
-  }
+  })
 
   health_check {
     interval            = 30
@@ -170,7 +189,7 @@ resource "aws_lb_target_group" "alb" {
     port                = "traffic-port"
     protocol            = "HTTP"
     timeout             = 5
-    healthy_threshold   = 5
+    healthy_threshold   = 2
     unhealthy_threshold = 2
     matcher             = "200-299"
   }
