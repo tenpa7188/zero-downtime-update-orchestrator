@@ -25,17 +25,36 @@ on:
 
 jobs:
   dry-run:
-    runs-on: self-hosted
+    # prod: GitHub-hosted（SSM 経由で AWS に届く）
+    # dev:  self-hosted（Vagrant へのローカル到達が必要）
+    runs-on: ${{ github.event.inputs.environment == 'prod' && 'ubuntu-latest' || 'self-hosted' }}
+    permissions:
+      id-token: write   # OIDC トークン発行に必要
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
-      - name: SSH 秘密鍵を設定する
-        # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
-        # run: |
-        #   mkdir -p ~/.ssh
-        #   echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        #   chmod 600 ~/.ssh/id_rsa
-        run: echo "秘密鍵設定はローカル環境では省略"
+      - name: Python 依存関係をインストールする（prod のみ）
+        if: github.event.inputs.environment == 'prod'
+        run: pip install -r requirements.txt
+
+      - name: Ansible コレクションをキャッシュから復元する（prod のみ）
+        if: github.event.inputs.environment == 'prod'
+        uses: actions/cache@v4
+        with:
+          path: ~/.ansible/collections
+          key: ansible-collections-${{ hashFiles('ansible/requirements.yml') }}
+
+      - name: Ansible コレクションをインストールする（prod のみ）
+        if: github.event.inputs.environment == 'prod'
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: AWS 認証（prod 環境のみ）
+        if: github.event.inputs.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
 
       - name: dry-run を実行
         run: |
@@ -50,7 +69,7 @@ jobs:
   approve:
     needs: dry-run
     if: github.event_name == 'workflow_dispatch'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     environment: production
     steps:
       - name: 承認待ち
@@ -59,19 +78,34 @@ jobs:
   deploy:
     needs: approve
     if: github.event_name == 'workflow_dispatch'
-    runs-on: self-hosted
+    runs-on: ${{ github.event.inputs.environment == 'prod' && 'ubuntu-latest' || 'self-hosted' }}
     permissions:
-      contents: write
+      id-token: write   # OIDC トークン発行に必要
+      contents: write   # group_vars への git push に必要
     steps:
       - uses: actions/checkout@v5
 
-      - name: SSH 秘密鍵を設定する
-        # 本番運用時は GitHub Secrets に登録した秘密鍵をここで配置する
-        # run: |
-        #   mkdir -p ~/.ssh
-        #   echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        #   chmod 600 ~/.ssh/id_rsa
-        run: echo "秘密鍵設定はローカル環境では省略"
+      - name: Python 依存関係をインストールする（prod のみ）
+        if: github.event.inputs.environment == 'prod'
+        run: pip install -r requirements.txt
+
+      - name: Ansible コレクションをキャッシュから復元する（prod のみ）
+        if: github.event.inputs.environment == 'prod'
+        uses: actions/cache@v4
+        with:
+          path: ~/.ansible/collections
+          key: ansible-collections-${{ hashFiles('ansible/requirements.yml') }}
+
+      - name: Ansible コレクションをインストールする（prod のみ）
+        if: github.event.inputs.environment == 'prod'
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: AWS 認証（prod 環境のみ）
+        if: github.event.inputs.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
 
       - name: デプロイを実行
         run: |
