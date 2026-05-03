@@ -1,0 +1,25 @@
+---
+plugin: amazon.aws.aws_ec2
+regions:
+  - ap-northeast-1
+
+# main.tf の common_tags で付けたタグで絞り込む
+filters:
+  tag:Environment: prod
+  tag:ManagedBy: terraform
+  instance-state-name: running
+
+# SSM 接続はインスタンス ID で行う（IP アドレスは使わない）
+hostnames:
+  - instance-id
+
+# Name タグの値でグループを自動生成する
+# 例: zduo-web01 → グループ名 zduo_web01
+keyed_groups:
+  - key: tags.Name
+    prefix: ""
+    separator: ""
+
+# web グループを手動定義（Name タグが zduo-web* に一致するインスタンス）
+groups:
+  web: "'zduo-web' in tags.Name"

@@ -1,0 +1,8 @@
+---
+# SSM 経由で接続する（SSH キー・ポート22 不要）
+ansible_connection: community.aws.aws_ssm
+ansible_aws_ssm_region: ap-northeast-1
+
+apache_version: ""
+healthcheck_service: apache2
+healthcheck_port: 8080
