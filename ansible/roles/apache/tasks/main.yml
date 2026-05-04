@@ -14,14 +14,19 @@
 
 - name: Apache をインストールする
   ansible.builtin.apt:
-    name: >-
-      {{ apache_package }}{{ ('=' + apache_version) if apache_version else '' }}
+    name:
+      - "{{ apache_package }}{{ _ver }}"
+      - "{{ apache_package }}-bin{{ _ver }}"
+      - "{{ apache_package }}-data{{ _ver }}"
+      - "{{ apache_package }}-utils{{ _ver }}"
     state: present
     update_cache: true
     allow_downgrade: true
   become: true
   check_mode: false
   when: not ansible_check_mode
+  vars:
+    _ver: "{{ ('=' + apache_version) if apache_version else '' }}"
 
 - name: Ports.conf を配置する
   ansible.builtin.template:
