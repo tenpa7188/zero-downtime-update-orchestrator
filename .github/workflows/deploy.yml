@@ -36,7 +36,7 @@ jobs:
 
       - name: Python 依存関係をインストールする（prod のみ）
         if: github.event.inputs.environment == 'prod'
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-deploy.txt
 
       - name: Ansible コレクションをキャッシュから復元する（prod のみ）
         if: github.event.inputs.environment == 'prod'
@@ -87,7 +87,7 @@ jobs:
 
       - name: Python 依存関係をインストールする（prod のみ）
         if: github.event.inputs.environment == 'prod'
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-deploy.txt
 
       - name: Ansible コレクションをキャッシュから復元する（prod のみ）
         if: github.event.inputs.environment == 'prod'
