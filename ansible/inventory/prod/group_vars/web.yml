@@ -3,6 +3,6 @@
 ansible_connection: community.aws.aws_ssm
 ansible_aws_ssm_region: ap-northeast-1
 
-apache_version: ""
+apache_version: "2.4.52-1ubuntu4.19"
 healthcheck_service: apache2
 healthcheck_port: 8080

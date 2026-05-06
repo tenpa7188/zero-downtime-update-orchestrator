@@ -10,3 +10,6 @@
 .terraform/
 !.terraform.lock.hcl
 *.tfvars
+
+#venv
+.venv
