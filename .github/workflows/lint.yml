@@ -22,5 +22,8 @@ jobs:
       - name: yamllint を実行
         run: cd ansible && yamllint ./
 
+      - name: Ansible コレクションをインストール
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
       - name: ansible-lint を実行
         run: cd ansible && ansible-lint playbooks/
