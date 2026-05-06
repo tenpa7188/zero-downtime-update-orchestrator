@@ -1,10 +1,27 @@
 ---
+- name: ALB ターゲットグループ ARN を動的に取得する（prod のみ）
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: ターゲットグループ情報を取得する
+      community.aws.elb_target_group_info:
+        names:
+          - "{{ project_name }}-tg"
+        region: "{{ aws_region }}"
+      register: tg_info
+      when: lb_control_type | default('nginx') == 'alb'
+
+    - name: Lb_target_group_arn をセットする
+      ansible.builtin.set_fact:
+        lb_target_group_arn: "{{ tg_info.target_groups[0].target_group_arn }}"
+      when: lb_control_type | default('nginx') == 'alb'
+
 - name: LB に nginx をセットアップする
   hosts: lb
   roles:
     - nginx
 
-- name: LB の初期プロキシ設定を行う
+- name: LB の初期プロキシ設定を行う（nginx LB のみ）
   hosts: web
   run_once: true
   tasks:
@@ -13,6 +30,7 @@
         name: lb_control
       vars:
         lb_control_action: restore
+      when: lb_control_type | default('nginx') == 'nginx'
 
 - name: ローリング更新
   hosts: web

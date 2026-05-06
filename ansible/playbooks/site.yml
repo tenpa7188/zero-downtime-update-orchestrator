@@ -2,4 +2,4 @@
 - name: Web サーバのセットアップ
   hosts: web
   roles:
-    - nginx
+    - apache

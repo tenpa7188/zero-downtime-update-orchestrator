@@ -1,4 +1,7 @@
 ---
+# ----------------------------------------
+# Nginx LB（dev）
+# ----------------------------------------
 - name: LB のプロキシ設定を配置する
   ansible.builtin.template:
     src: proxy.conf.j2
@@ -9,6 +12,7 @@
     backup: true
   become: true
   delegate_to: lb01
+  when: lb_control_type == 'nginx'
 
 - name: LB の upstream 設定を更新する
   ansible.builtin.template:
@@ -20,18 +24,21 @@
     backup: true
   become: true
   delegate_to: lb01
+  when: lb_control_type == 'nginx'
 
 - name: Proxy.conf のバックアップ世代管理
   ansible.builtin.include_tasks: backup_cleanup.yml
   vars:
     backup_pattern: /etc/nginx/conf.d/proxy.conf.*~
     backup_keep: "{{ lb_control_proxy_backup_generations }}"
+  when: lb_control_type == 'nginx'
 
 - name: Upstream.conf のバックアップ世代管理
   ansible.builtin.include_tasks: backup_cleanup.yml
   vars:
     backup_pattern: /etc/nginx/conf.d/upstream.conf.*~
     backup_keep: "{{ lb_control_upstream_backup_generations }}"
+  when: lb_control_type == 'nginx'
 
 - name: LB の nginx を reload する
   ansible.builtin.service:
@@ -40,11 +47,43 @@
   changed_when: false
   become: true
   delegate_to: lb01
+  when: lb_control_type == 'nginx'
 
 - name: ドレイン後の既存接続が抜けるのを待つ
   ansible.builtin.pause:
     seconds: "{{ lb_control_drain_wait }}"
   when:
+    - lb_control_type == 'nginx'
     - lb_control_action == 'drain'
     - lb_control_drain_wait | int > 0
+    - not ansible_check_mode
+
+# ----------------------------------------
+# ALB（prod）
+# inventory_hostname = EC2 インスタンス ID（SSM 接続の仕様）
+# ----------------------------------------
+- name: ALB からターゲットを切り離す
+  community.aws.elb_target:
+    target_group_arn: "{{ lb_target_group_arn }}"
+    target_id: "{{ inventory_hostname }}"
+    state: absent
+    region: "{{ aws_region }}"
+  delegate_to: localhost
+  when:
+    - lb_control_type == 'alb'
+    - lb_control_action == 'drain'
+    - not ansible_check_mode
+
+- name: ALB にターゲットを登録して Healthy になるまで待つ
+  community.aws.elb_target:
+    target_group_arn: "{{ lb_target_group_arn }}"
+    target_id: "{{ inventory_hostname }}"
+    state: present
+    target_status: healthy
+    target_status_timeout: 300
+    region: "{{ aws_region }}"
+  delegate_to: localhost
+  when:
+    - lb_control_type == 'alb'
+    - lb_control_action == 'restore'
     - not ansible_check_mode

@@ -1,4 +1,5 @@
 ---
+lb_control_type: nginx   # nginx（dev）または alb（prod）
 lb_control_host: lb01
 lb_control_action: drain
 lb_control_listen_port: 80
