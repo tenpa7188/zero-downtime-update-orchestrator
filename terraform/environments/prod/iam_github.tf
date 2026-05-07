@@ -79,4 +79,17 @@ data "aws_iam_policy_document" "github_actions_policy" {
     actions   = ["ec2:DescribeInstances"]
     resources = ["*"]
   }
+
+  # Ansible SSM 接続プラグインのステージング用 S3 バケット
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.ansible_ssm.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+    resources = ["${aws_s3_bucket.ansible_ssm.arn}/*"]
+  }
 }

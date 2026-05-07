@@ -12,6 +12,7 @@
     that:
       - healthcheck_service_status.status.ActiveState == 'active'
     fail_msg: "{{ healthcheck_service }} が起動していません"
+  when: not ansible_check_mode
 
 - name: HTTP レスポンスを確認する
   ansible.builtin.uri:
