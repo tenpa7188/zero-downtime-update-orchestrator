@@ -54,10 +54,10 @@ data "aws_iam_policy_document" "github_actions_policy" {
     effect = "Allow"
     actions = [
       "ssm:StartSession",
-      "ssm:SendCommand",
-      "ssm:GetCommandInvocation",
-      "ssm:DescribeInstanceInformation",
       "ssm:TerminateSession",
+      "ssm:ResumeSession",
+      "ssm:GetConnectionStatus",
+      "ssm:DescribeInstanceInformation",
     ]
     resources = ["*"]
   }
@@ -69,6 +69,9 @@ data "aws_iam_policy_document" "github_actions_policy" {
       "elasticloadbalancing:DeregisterTargets",
       "elasticloadbalancing:RegisterTargets",
       "elasticloadbalancing:DescribeTargetHealth",
+      "elasticloadbalancing:DescribeTargetGroups",
+      "elasticloadbalancing:DescribeTargetGroupAttributes",
+      "elasticloadbalancing:DescribeTags",
     ]
     resources = ["*"]
   }
@@ -83,7 +86,7 @@ data "aws_iam_policy_document" "github_actions_policy" {
   # Ansible SSM 接続プラグインのステージング用 S3 バケット
   statement {
     effect    = "Allow"
-    actions   = ["s3:ListBucket"]
+    actions   = ["s3:ListBucket", "s3:GetBucketLocation"]
     resources = [aws_s3_bucket.ansible_ssm.arn]
   }
 

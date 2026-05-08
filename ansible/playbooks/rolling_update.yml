@@ -16,6 +16,15 @@
         lb_target_group_arn: "{{ tg_info.target_groups[0].target_group_arn }}"
       when: lb_control_type | default('nginx') == 'alb'
 
+- name: Lb_target_group_arn を web ホストに配布する（prod のみ）
+  hosts: web
+  gather_facts: false
+  tasks:
+    - name: Lb_target_group_arn をセットする
+      ansible.builtin.set_fact:
+        lb_target_group_arn: "{{ hostvars['localhost']['lb_target_group_arn'] }}"
+      when: lb_control_type | default('nginx') == 'alb'
+
 - name: LB に nginx をセットアップする
   hosts: lb
   roles:

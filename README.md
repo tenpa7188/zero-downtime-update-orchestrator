@@ -17,8 +17,10 @@
 |---|---|---|
 | 構成管理・更新自動化 | Ansible | ミドルウェア更新・ローリング更新・切り戻し |
 | ローカル検証環境 | Vagrant + VirtualBox | lb × 1・web × 2 の擬似マルチホスト環境 |
+| 本番インフラ | Terraform + AWS | VPC・EC2・ALB・IAM・S3 の IaC 管理 |
 | CI/CD | GitHub Actions | lint・dry-run・手動承認・デプロイ |
-| 対象ミドルウェア | Nginx | LB・Web サーバの設定管理と更新 |
+| 対象ミドルウェア | Apache（Web）/ Nginx（LB・dev のみ） | バージョン管理とローリング更新 |
+| 本番接続 | AWS SSM | SSH ポート不要・インスタンスプロファイルで認証 |
 
 > AI 補助機能（脆弱性要約・手順書ドラフト生成・ログ分析など）は将来追加予定。現時点では拡張ポイントのみ設計済み。
 
@@ -34,8 +36,8 @@
 | Step 4 | healthcheck role + update playbook + tags | ✅ 完了 |
 | Step 5 | serial + lb_control（ローリング更新） | ✅ 完了 |
 | Step 6 | GitHub Actions による CI/CD（lint・dry-run・承認・deploy） | ✅ 完了 |
-| Step 7 | バージョン検知 → dry-run 自動トリガー | 🚧 進行中 |
-| Step 8 | Terraform による IaC 土台 | 🔲 未着手 |
+| Step 7 | Terraform による AWS prod 環境構築（VPC・EC2・ALB・IAM・S3） | ✅ 完了 |
+| Step 8 | prod 環境での実機ローリング更新テスト | 🚧 進行中 |
 
 ---
 
@@ -45,41 +47,74 @@
 .
 ├── ansible/
 │   ├── ansible.cfg
+│   ├── requirements.yml              # Ansible コレクション（amazon.aws / community.aws）
 │   ├── inventory/
-│   │   └── dev/
-│   │       ├── hosts.yml
+│   │   ├── dev/                      # 検証環境（Vagrant VM）
+│   │   │   ├── hosts.yml
+│   │   │   └── group_vars/
+│   │   │       ├── all.yml
+│   │   │       └── web.yml
+│   │   └── prod/                     # 本番環境（AWS EC2）
+│   │       ├── aws_ec2.yml           # 動的インベントリ（amazon.aws.aws_ec2）
 │   │       └── group_vars/
-│   │           ├── all.yml       # 全ホスト共通変数
-│   │           └── web.yml       # web グループ変数
+│   │           ├── all.yml           # lb_control_type: alb など
+│   │           └── web.yml           # SSM 接続設定・apache バージョン
 │   ├── roles/
-│   │   ├── nginx/                # インストール・設定・再起動
-│   │   ├── healthcheck/          # サービス起動確認・HTTP 疎通確認
-│   │   └── lb_control/           # LB からの切り離し・組み込み・バックアップ管理
+│   │   ├── nginx/                    # LB 用 Nginx（dev 検証環境のみ）
+│   │   ├── apache/                   # Web サーバ Apache（dev / prod 共通）
+│   │   ├── healthcheck/              # サービス起動確認・HTTP 疎通確認
+│   │   └── lb_control/               # LB 切り離し・組み込み（Nginx / ALB 対応）
 │   └── playbooks/
-│       ├── rolling_update.yml    # メインのローリング更新
+│       ├── rolling_update.yml        # メインのローリング更新（dev / prod 共通）
 │       ├── update.yml
 │       └── site.yml
+├── terraform/
+│   └── environments/
+│       └── prod/
+│           ├── locals.tf             # common_tags
+│           ├── variables.tf          # リージョン・プロジェクト名・AMI など
+│           ├── provider.tf
+│           ├── main.tf               # VPC・SG・EC2・ALB
+│           ├── s3.tf                 # Ansible SSM ステージング用 S3
+│           ├── iam_github.tf         # GitHub Actions OIDC ロール
+│           ├── iam_ec2.tf            # EC2 インスタンスプロファイル（SSM + S3）
+│           └── outputs.tf
 ├── scripts/
-│   └── watch_lb.sh               # LB へ1秒ごとにリクエストし応答サーバを表示
-├── Vagrantfile                   # lb01・web01・web02 の VM 定義
-├── requirements.txt              # ansible-lint・yamllint のバージョン固定
-├── .gitattributes                # LF 強制
+│   ├── check_vulnerability.sh        # apt でバージョン比較・脆弱性検知
+│   └── watch_lb.sh                   # LB へ 1 秒ごとにリクエストし応答サーバを表示
+├── docs/
+│   ├── architecture.md               # 設計方針・ロール設計
+│   ├── runbook.md                    # 運用手順書（ローリング更新・切り戻し）
+│   └── workflow.md                   # CI/CD ワークフロー詳細
+├── Vagrantfile                       # lb01・web01・web02 の VM 定義
+├── requirements-lint.txt             # yamllint・ansible-lint のバージョン固定
+├── requirements-deploy.txt           # boto3・botocore のバージョン固定
 └── .github/
     └── workflows/
-        ├── lint.yml              # yamllint + ansible-lint（push 時自動実行）
-        └── deploy.yml            # dry-run（push 時）→ 承認 → deploy（手動）
+        ├── lint.yml                  # yamllint + ansible-lint
+        ├── deploy.yml                # dry-run → 承認 → ローリング更新
+        └── rollback.yml              # 切り戻し（手動実行）
 ```
 
 ---
 
-## ローカル検証環境
+## 環境別の接続方式
+
+| 環境 | LB | Web 接続 | GitHub Actions Runner |
+|---|---|---|---|
+| dev | Nginx（Vagrant VM） | SSH（Vagrant 鍵） | self-hosted（WSL2） |
+| prod | AWS ALB | AWS SSM（ポート22不要） | ubuntu-latest（OIDC 認証） |
+
+---
+
+## ローカル検証環境（dev）
 
 Vagrant + VirtualBox で 3VM 構成を起動します。
 
 ```
 192.168.56.10  lb01   # Nginx ロードバランサ
-192.168.56.11  web01  # Nginx Web サーバ
-192.168.56.12  web02  # Nginx Web サーバ
+192.168.56.11  web01  # Apache Web サーバ
+192.168.56.12  web02  # Apache Web サーバ
 ```
 
 ```bash
@@ -92,19 +127,11 @@ bash scripts/watch_lb.sh
 
 ---
 
-## ドキュメント
-
-- [docs/architecture.md](docs/architecture.md) — 設計方針・ロール設計・主要な設計判断
-- [docs/workflow.md](docs/workflow.md) — CI/CD ワークフロー詳細・act によるローカル実行
-
----
-
 ## 主要コマンド
 
-```bash
-# 構文チェック
-ansible-playbook ansible/playbooks/rolling_update.yml --syntax-check
+### dev 環境
 
+```bash
 # ドライラン
 cd ansible && ansible-playbook playbooks/rolling_update.yml \
   -i inventory/dev --check --diff
@@ -112,8 +139,44 @@ cd ansible && ansible-playbook playbooks/rolling_update.yml \
 # ローリング更新実行
 cd ansible && ansible-playbook playbooks/rolling_update.yml \
   -i inventory/dev
+```
 
-# Lint
+### prod 環境（AWS）
+
+```bash
+# 事前：AWS 認証
+export AWS_PROFILE=your-profile
+
+# ドライラン
+cd ansible && ansible-playbook playbooks/rolling_update.yml \
+  -i inventory/prod --check --diff
+
+# ローリング更新実行
+cd ansible && ansible-playbook playbooks/rolling_update.yml \
+  -i inventory/prod
+```
+
+### Terraform（prod インフラ管理）
+
+```bash
+cd terraform/environments/prod
+
+terraform init
+terraform plan
+terraform apply
+```
+
+### Lint
+
+```bash
 cd ansible && yamllint ./
 cd ansible && ansible-lint playbooks/
 ```
+
+---
+
+## ドキュメント
+
+- [docs/architecture.md](docs/architecture.md) — 設計方針・ロール設計・主要な設計判断
+- [docs/runbook.md](docs/runbook.md) — 運用手順書（ローリング更新・切り戻し・トラブルシューティング）
+- [docs/workflow.md](docs/workflow.md) — CI/CD ワークフロー詳細
