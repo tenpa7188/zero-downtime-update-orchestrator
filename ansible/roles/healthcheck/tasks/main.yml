@@ -14,11 +14,13 @@
     fail_msg: "{{ healthcheck_service }} が起動していません"
   when: not ansible_check_mode
 
-- name: HTTP レスポンスを確認する
+- name: HTTP レスポンスを確認する（nginx LB のみ・ALB はターゲット Healthy 待機で担保済み）
   ansible.builtin.uri:
     url: "http://{{ ansible_host }}:{{ healthcheck_port }}/"
     status_code: 200
     timeout: 10
   delegate_to: localhost
   check_mode: false
-  when: not ansible_check_mode
+  when:
+    - not ansible_check_mode
+    - lb_control_type | default('nginx') == 'nginx'

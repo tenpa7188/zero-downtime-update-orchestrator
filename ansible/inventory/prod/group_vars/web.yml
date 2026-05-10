@@ -5,6 +5,6 @@ ansible_aws_ssm_region: ap-northeast-1
 ansible_user: ssm-user
 ansible_aws_ssm_bucket_name: zduo-ansible-ssm
 
-apache_version: "2.4.52-1ubuntu4.19"
+apache_version: "2.4.52-1ubuntu4.20"
 healthcheck_service: apache2
 healthcheck_port: 8080
