@@ -1,3 +1,2 @@
 ---
 healthcheck_service: apache2
-healthcheck_port: "{{ apache_port | default(8080) }}"
