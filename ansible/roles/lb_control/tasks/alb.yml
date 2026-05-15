@@ -1,0 +1,23 @@
+---
+# inventory_hostname = EC2 インスタンス ID（SSM 接続の仕様）
+- name: ALB ターゲット登録状態を更新する
+  delegate_to: localhost
+  when: not ansible_check_mode
+  block:
+    - name: ALB からターゲットを切り離す
+      community.aws.elb_target:
+        target_group_arn: "{{ lb_target_group_arn }}"
+        target_id: "{{ inventory_hostname }}"
+        state: absent
+        region: "{{ aws_region }}"
+      when: lb_control_action == 'drain'
+
+    - name: ALB にターゲットを登録して Healthy になるまで待つ
+      community.aws.elb_target:
+        target_group_arn: "{{ lb_target_group_arn }}"
+        target_id: "{{ inventory_hostname }}"
+        state: present
+        target_status: healthy
+        target_status_timeout: 300
+        region: "{{ aws_region }}"
+      when: lb_control_action == 'restore'

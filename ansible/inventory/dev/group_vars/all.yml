@@ -1,3 +1,4 @@
 ---
 ansible_python_interpreter: /usr/bin/python3
+lb_control_type: nginx
 lb_control_drain_wait: 80

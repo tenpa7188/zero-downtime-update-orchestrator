@@ -3,5 +3,15 @@ lb_control_type: nginx   # nginx（dev）または alb（prod）
 lb_control_host: lb01
 lb_control_action: drain
 lb_control_listen_port: 80
+lb_control_drain_wait: 0
 lb_control_proxy_backup_generations: 3
 lb_control_upstream_backup_generations: 9
+lb_control_nginx_templates:
+  - src: proxy.conf.j2
+    dest: /etc/nginx/conf.d/proxy.conf
+    backup_pattern: "/etc/nginx/conf.d/proxy.conf.*~"
+    backup_keep: "{{ lb_control_proxy_backup_generations }}"
+  - src: upstream.conf.j2
+    dest: /etc/nginx/conf.d/upstream.conf
+    backup_pattern: "/etc/nginx/conf.d/upstream.conf.*~"
+    backup_keep: "{{ lb_control_upstream_backup_generations }}"

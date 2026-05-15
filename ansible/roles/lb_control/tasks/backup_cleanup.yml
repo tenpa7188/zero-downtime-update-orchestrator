@@ -10,4 +10,4 @@
   changed_when: false
   failed_when: false
   become: true
-  delegate_to: lb01
+  delegate_to: "{{ backup_delegate_to }}"
