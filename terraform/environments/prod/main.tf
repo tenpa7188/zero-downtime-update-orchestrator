@@ -176,6 +176,8 @@ resource "aws_lb_target_group" "alb" {
     Name = "${var.project_name}-tg"
   })
 
+  deregistration_delay = 60
+
   health_check {
     interval            = 30
     path                = "/index.html"
