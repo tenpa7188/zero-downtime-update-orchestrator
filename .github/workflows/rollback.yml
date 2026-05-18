@@ -20,7 +20,6 @@ on:
 jobs:
   rollback:
     runs-on: ${{ github.event.inputs.environment == 'prod' && 'ubuntu-latest' || 'self-hosted' }}
-    environment: production
     permissions:
       id-token: write   # OIDC トークン発行に必要
       contents: write   # group_vars への git push に必要
