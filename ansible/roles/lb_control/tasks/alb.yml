@@ -9,8 +9,7 @@
         target_group_arn: "{{ lb_target_group_arn }}"
         target_id: "{{ inventory_hostname }}"
         state: absent
-        wait: true
-        wait_timeout: 90
+        deregister_unused: true
         region: "{{ aws_region }}"
       when: lb_control_action == 'drain'
 
