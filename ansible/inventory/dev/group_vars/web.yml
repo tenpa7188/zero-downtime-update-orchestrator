@@ -1,3 +1,2 @@
 ---
 apache_version: "2.4.52-1ubuntu4.19"
-web_http_port: 8080
