@@ -60,6 +60,16 @@
     backup: true
   become: true
 
+- name: Apache 管理ファイルのバックアップを世代管理する
+  ansible.builtin.include_role:
+    name: backup_cleanup
+  vars:
+    backup_cleanup_pattern: "{{ item.pattern }}"
+    backup_cleanup_keep: "{{ item.keep }}"
+  loop: "{{ apache_backup_cleanup_targets }}"
+  loop_control:
+    label: "{{ item.pattern }}"
+
 - name: Apache を起動・自動起動有効にする
   ansible.builtin.service:
     name: apache2

@@ -2,3 +2,11 @@
 apache_package: apache2
 apache_version: ""
 apache_document_root: /var/www/html
+apache_backup_generations: 3
+apache_backup_cleanup_targets:
+  - pattern: /etc/apache2/ports.conf.*~
+    keep: "{{ apache_backup_generations }}"
+  - pattern: /etc/apache2/sites-available/000-default.conf.*~
+    keep: "{{ apache_backup_generations }}"
+  - pattern: "{{ apache_document_root }}/index.html.*~"
+    keep: "{{ apache_backup_generations }}"
