@@ -1,4 +1,11 @@
 ---
+- name: Backup pattern が指定されていることを確認する
+  ansible.builtin.assert:
+    that:
+      - backup_pattern is defined
+      - backup_pattern | default('') | length > 0
+    fail_msg: "backup_pattern を指定してください"
+
 - name: 古いバックアップを削除する
   ansible.builtin.shell:
     cmd: |

@@ -1,0 +1,3 @@
+---
+backup_keep: 3
+backup_delegate_to: "{{ inventory_hostname }}"

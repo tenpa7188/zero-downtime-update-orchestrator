@@ -17,14 +17,9 @@
   become: true
   notify: Reload nginx
 
-- name: 古いバックアップを削除する（直近3世代のみ残す）
-  ansible.builtin.shell:
-    cmd: |
-      set -o pipefail
-      ls -t /etc/nginx/nginx.conf.*~ 2>/dev/null \
-        | tail -n +4 \
-        | xargs -r rm -f
-    executable: /bin/bash
-  changed_when: false
-  failed_when: false
-  become: true
+- name: LB 用 Nginx 設定バックアップを世代管理する
+  ansible.builtin.include_role:
+    name: backup_cleanup
+  vars:
+    backup_pattern: /etc/nginx/nginx.conf.*~
+    backup_keep: "{{ nginx_config_backup_generations }}"

@@ -14,7 +14,8 @@
     label: "{{ item.dest }}"
 
 - name: LB の nginx 設定バックアップを世代管理する
-  ansible.builtin.include_tasks: backup_cleanup.yml
+  ansible.builtin.include_role:
+    name: backup_cleanup
   vars:
     backup_pattern: "{{ item.backup_pattern }}"
     backup_keep: "{{ item.backup_keep }}"
