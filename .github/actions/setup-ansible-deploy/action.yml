@@ -28,7 +28,7 @@ runs:
 
     - name: Ansible コレクションをキャッシュから復元する（prod のみ）
       if: inputs.target-environment == 'prod'
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.ansible/collections
         key: ${{ inputs.collections-cache-key }}
@@ -40,7 +40,7 @@ runs:
 
     - name: AWS 認証（prod 環境のみ）
       if: inputs.target-environment == 'prod'
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v5
       with:
         role-to-assume: ${{ inputs.aws-role-arn }}
         aws-region: ${{ inputs.aws-region }}
