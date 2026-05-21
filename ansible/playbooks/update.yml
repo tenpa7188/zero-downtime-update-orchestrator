@@ -1,9 +1,6 @@
 ---
-- name: Nginx を更新して動作確認する
-  hosts: web
+- name: LB 用 Nginx を更新する
+  hosts: lb
   roles:
     - role: nginx
       tags: nginx
-
-    - role: healthcheck
-      tags: healthcheck

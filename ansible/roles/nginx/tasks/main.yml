@@ -1,12 +1,12 @@
 ---
-- name: Nginx をインストールする
+- name: LB 用 Nginx をインストールする
   ansible.builtin.apt:
     name: "{{ nginx_package }}"
     state: present
     update_cache: false
   become: true
 
-- name: Nginx の設定ファイルを配置する
+- name: LB 用 Nginx の設定ファイルを配置する
   ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
@@ -16,16 +16,6 @@
     backup: true
   become: true
   notify: Reload nginx
-
-- name: Index.html を配置する
-  ansible.builtin.template:
-    src: index.html.j2
-    dest: "{{ nginx_document_root }}/index.html"
-    owner: www-data
-    group: www-data
-    mode: "0644"
-    backup: true
-  become: true
 
 - name: 古いバックアップを削除する（直近3世代のみ残す）
   ansible.builtin.shell:
