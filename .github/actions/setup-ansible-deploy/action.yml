@@ -1,0 +1,46 @@
+---
+name: Setup Ansible deploy
+description: "Install dependencies and configure AWS credentials for Ansible deploy jobs."
+
+inputs:
+  target-environment:
+    description: "Target environment name."
+    required: true
+  aws-role-arn:
+    description: "AWS IAM role ARN for prod deploys."
+    required: false
+    default: ""
+  aws-region:
+    description: "AWS region for prod deploys."
+    required: false
+    default: ap-northeast-1
+  collections-cache-key:
+    description: "Cache key for Ansible collections."
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Python 依存関係をインストールする（prod のみ）
+      if: inputs.target-environment == 'prod'
+      shell: bash
+      run: pip install -r requirements-deploy.txt
+
+    - name: Ansible コレクションをキャッシュから復元する（prod のみ）
+      if: inputs.target-environment == 'prod'
+      uses: actions/cache@v4
+      with:
+        path: ~/.ansible/collections
+        key: ${{ inputs.collections-cache-key }}
+
+    - name: Ansible コレクションをインストールする（prod のみ）
+      if: inputs.target-environment == 'prod'
+      shell: bash
+      run: ansible-galaxy collection install -r ansible/requirements.yml
+
+    - name: AWS 認証（prod 環境のみ）
+      if: inputs.target-environment == 'prod'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role-arn }}
+        aws-region: ${{ inputs.aws-region }}

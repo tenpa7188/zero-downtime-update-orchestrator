@@ -5,10 +5,11 @@
 ```
 push (ansible/** 変更時)
   ├─ [lint.yml]    yamllint + ansible-lint
-  └─ [deploy.yml]  dry-run（self-hosted runner → Vagrant VM）
+  └─ [deploy.yml]  dry-run → deploy（dev / 承認なし）
 
 workflow_dispatch（手動実行）
-  └─ dry-run → 承認（environment: production）→ deploy
+  ├─ dev:  dry-run → deploy（承認なし）
+  └─ prod: dry-run → 承認（environment: production）→ deploy
 ```
 
 ---
@@ -28,7 +29,7 @@ workflow_dispatch（手動実行）
 | 項目 | 内容 |
 |---|---|
 | トリガー | `ansible/**` への push・手動実行 |
-| 実行環境 | self-hosted runner（ローカル PC）|
+| 実行環境 | dev は self-hosted runner、prod は ubuntu-latest |
 | 内容 | `ansible-playbook --check --diff` |
 | 対象環境 | push 時は `dev` 固定、手動時は選択可（dev / prod） |
 
@@ -36,15 +37,15 @@ workflow_dispatch（手動実行）
 
 | 項目 | 内容 |
 |---|---|
-| トリガー | dry-run 成功後・手動実行時のみ |
+| トリガー | prod 手動実行の dry-run 成功後のみ |
 | 内容 | GitHub environment `production` による承認待ち |
 
 ### deploy（deploy.yml）
 
 | 項目 | 内容 |
 |---|---|
-| トリガー | approve 成功後・手動実行時のみ |
-| 実行環境 | self-hosted runner |
+| トリガー | dev は dry-run 成功後、prod は approve 成功後 |
+| 実行環境 | dev は self-hosted runner、prod は ubuntu-latest |
 | 内容 | `ansible-playbook`（実際のローリング更新） |
 
 

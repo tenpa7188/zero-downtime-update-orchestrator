@@ -27,48 +27,36 @@ jobs:
   dry-run:
     # prod: GitHub-hosted（SSM 経由で AWS に届く）
     # dev:  self-hosted（Vagrant へのローカル到達が必要）
-    runs-on: ${{ github.event.inputs.environment == 'prod' && 'ubuntu-latest' || 'self-hosted' }}
+    runs-on: ${{ (github.event.inputs.environment || 'dev') == 'prod' && 'ubuntu-latest' || 'self-hosted' }}
     permissions:
       id-token: write   # OIDC トークン発行に必要
       contents: read
+    env:
+      TARGET_ENV: ${{ github.event.inputs.environment || 'dev' }}
+      APACHE_VERSION: ${{ github.event.inputs.apache_version || '' }}
     steps:
       - uses: actions/checkout@v5
 
-      - name: Python 依存関係をインストールする（prod のみ）
-        if: github.event.inputs.environment == 'prod'
-        run: pip install -r requirements-deploy.txt
-
-      - name: Ansible コレクションをキャッシュから復元する（prod のみ）
-        if: github.event.inputs.environment == 'prod'
-        uses: actions/cache@v4
+      - name: Ansible 実行環境を準備する
+        uses: ./.github/actions/setup-ansible-deploy
         with:
-          path: ~/.ansible/collections
-          key: ansible-collections-${{ hashFiles('ansible/requirements.yml') }}
-
-      - name: Ansible コレクションをインストールする（prod のみ）
-        if: github.event.inputs.environment == 'prod'
-        run: ansible-galaxy collection install -r ansible/requirements.yml
-
-      - name: AWS 認証（prod 環境のみ）
-        if: github.event.inputs.environment == 'prod'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-northeast-1
+          target-environment: ${{ env.TARGET_ENV }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          collections-cache-key: ansible-collections-${{ hashFiles('ansible/requirements.yml') }}
 
       - name: dry-run を実行
         run: |
           EXTRA_VARS=""
-          if [ -n "${{ github.event.inputs.apache_version }}" ]; then
-            EXTRA_VARS="-e apache_version=${{ github.event.inputs.apache_version }}"
+          if [ -n "${APACHE_VERSION}" ]; then
+            EXTRA_VARS="-e apache_version=${APACHE_VERSION}"
           fi
           cd ansible && ansible-playbook playbooks/rolling_update.yml \
-            -i inventory/${{ github.event.inputs.environment || 'dev' }} \
+            -i inventory/${TARGET_ENV} \
             --check --diff $EXTRA_VARS
 
   approve:
     needs: dry-run
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -76,51 +64,44 @@ jobs:
         run: echo "承認されました。デプロイを開始します。"
 
   deploy:
-    needs: approve
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ${{ github.event.inputs.environment == 'prod' && 'ubuntu-latest' || 'self-hosted' }}
+    needs:
+      - dry-run
+      - approve
+    if: |
+      always() &&
+      needs.dry-run.result == 'success' &&
+      ((github.event.inputs.environment || 'dev') == 'dev' || needs.approve.result == 'success')
+    runs-on: ${{ (github.event.inputs.environment || 'dev') == 'prod' && 'ubuntu-latest' || 'self-hosted' }}
     permissions:
       id-token: write   # OIDC トークン発行に必要
       contents: write   # group_vars への git push に必要
+    env:
+      TARGET_ENV: ${{ github.event.inputs.environment || 'dev' }}
+      APACHE_VERSION: ${{ github.event.inputs.apache_version || '' }}
     steps:
       - uses: actions/checkout@v5
 
-      - name: Python 依存関係をインストールする（prod のみ）
-        if: github.event.inputs.environment == 'prod'
-        run: pip install -r requirements-deploy.txt
-
-      - name: Ansible コレクションをキャッシュから復元する（prod のみ）
-        if: github.event.inputs.environment == 'prod'
-        uses: actions/cache@v4
+      - name: Ansible 実行環境を準備する
+        uses: ./.github/actions/setup-ansible-deploy
         with:
-          path: ~/.ansible/collections
-          key: ansible-collections-${{ hashFiles('ansible/requirements.yml') }}
-
-      - name: Ansible コレクションをインストールする（prod のみ）
-        if: github.event.inputs.environment == 'prod'
-        run: ansible-galaxy collection install -r ansible/requirements.yml
-
-      - name: AWS 認証（prod 環境のみ）
-        if: github.event.inputs.environment == 'prod'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-northeast-1
+          target-environment: ${{ env.TARGET_ENV }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
+          collections-cache-key: ansible-collections-${{ hashFiles('ansible/requirements.yml') }}
 
       - name: デプロイを実行
         run: |
           EXTRA_VARS=""
-          if [ -n "${{ github.event.inputs.apache_version }}" ]; then
-            EXTRA_VARS="-e apache_version=${{ github.event.inputs.apache_version }}"
+          if [ -n "${APACHE_VERSION}" ]; then
+            EXTRA_VARS="-e apache_version=${APACHE_VERSION}"
           fi
           cd ansible && ansible-playbook playbooks/rolling_update.yml \
-            -i inventory/${{ github.event.inputs.environment }} $EXTRA_VARS
+            -i inventory/${TARGET_ENV} $EXTRA_VARS
 
       - name: group_vars を更新済みバージョンに同期する
-        if: github.event.inputs.apache_version != ''
+        if: env.APACHE_VERSION != ''
         run: |
-          VERSION="${{ github.event.inputs.apache_version }}"
-          ENV="${{ github.event.inputs.environment }}"
+          VERSION="${APACHE_VERSION}"
+          ENV="${TARGET_ENV}"
           sed -i "s|^apache_version:.*|apache_version: \"${VERSION}\"|" \
             ansible/inventory/${ENV}/group_vars/web.yml
           git config user.email "github-actions[bot]@users.noreply.github.com"

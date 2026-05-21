@@ -92,7 +92,7 @@
 └── .github/
     └── workflows/
         ├── lint.yml                  # yamllint + ansible-lint
-        ├── deploy.yml                # dry-run → 承認 → ローリング更新
+        ├── deploy.yml                # dev: dry-run → 実行 / prod: dry-run → 承認 → 実行
         └── rollback.yml              # 切り戻し（手動実行）
 ```
 
