@@ -17,9 +17,9 @@
   ansible.builtin.include_role:
     name: backup_cleanup
   vars:
-    backup_pattern: "{{ item.backup_pattern }}"
-    backup_keep: "{{ item.backup_keep }}"
-    backup_delegate_to: "{{ lb_control_host }}"
+    backup_cleanup_pattern: "{{ item.backup_pattern }}"
+    backup_cleanup_keep: "{{ item.backup_keep }}"
+    backup_cleanup_delegate_to: "{{ lb_control_host }}"
   loop: "{{ lb_control_nginx_templates }}"
   loop_control:
     label: "{{ item.dest }}"

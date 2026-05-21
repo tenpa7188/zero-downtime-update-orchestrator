@@ -1,3 +1,3 @@
 ---
-backup_keep: 3
-backup_delegate_to: "{{ inventory_hostname }}"
+backup_cleanup_keep: 3
+backup_cleanup_delegate_to: "{{ inventory_hostname }}"

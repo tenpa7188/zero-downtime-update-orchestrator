@@ -2,19 +2,19 @@
 - name: Backup pattern が指定されていることを確認する
   ansible.builtin.assert:
     that:
-      - backup_pattern is defined
-      - backup_pattern | default('') | length > 0
-    fail_msg: "backup_pattern を指定してください"
+      - backup_cleanup_pattern is defined
+      - backup_cleanup_pattern | default('') | length > 0
+    fail_msg: "backup_cleanup_pattern を指定してください"
 
 - name: 古いバックアップを削除する
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      ls -t {{ backup_pattern }} 2>/dev/null \
-        | tail -n +{{ backup_keep | int + 1 }} \
+      ls -t {{ backup_cleanup_pattern }} 2>/dev/null \
+        | tail -n +{{ backup_cleanup_keep | int + 1 }} \
         | xargs -r rm -f
     executable: /bin/bash
   changed_when: false
   failed_when: false
   become: true
-  delegate_to: "{{ backup_delegate_to }}"
+  delegate_to: "{{ backup_cleanup_delegate_to }}"

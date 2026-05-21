@@ -21,5 +21,5 @@
   ansible.builtin.include_role:
     name: backup_cleanup
   vars:
-    backup_pattern: /etc/nginx/nginx.conf.*~
-    backup_keep: "{{ nginx_config_backup_generations }}"
+    backup_cleanup_pattern: /etc/nginx/nginx.conf.*~
+    backup_cleanup_keep: "{{ nginx_config_backup_generations }}"
