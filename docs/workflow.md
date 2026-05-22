@@ -2,60 +2,88 @@
 
 ## 全体フロー
 
+```text
+push to main (ansible/**)
+  ├─ lint.yml
+  └─ deploy.yml
+       └─ dev dry-run → dev deploy
+
+workflow_dispatch: deploy.yml
+  ├─ environment=dev
+  │    └─ dry-run → deploy
+  └─ environment=prod
+       └─ dry-run → production 承認 → deploy
+
+workflow_dispatch: rollback.yml
+  └─ 指定した environment / rollback_version で rolling_update.yml を実行
 ```
-push (ansible/** 変更時)
-  ├─ [lint.yml]    yamllint + ansible-lint
-  └─ [deploy.yml]  dry-run → deploy（dev / 承認なし）
 
-workflow_dispatch（手動実行）
-  ├─ dev:  dry-run → deploy（承認なし）
-  └─ prod: dry-run → 承認（environment: production）→ deploy
-```
+## workflows
 
----
-
-## ジョブ詳細
-
-### lint（lint.yml）
+### `lint.yml`
 
 | 項目 | 内容 |
 |---|---|
-| トリガー | `ansible/**` への push・PR |
-| 実行環境 | ubuntu-latest |
-| 内容 | `yamllint ./` → `ansible-lint playbooks/` |
+| トリガー | `ansible/**` への push / pull request |
+| Runner | `ubuntu-latest` |
+| 内容 | `yamllint ./`、`ansible-lint playbooks/` |
 
-### dry-run（deploy.yml）
+### `deploy.yml`
 
-| 項目 | 内容 |
-|---|---|
-| トリガー | `ansible/**` への push・手動実行 |
-| 実行環境 | dev は self-hosted runner、prod は ubuntu-latest |
-| 内容 | `ansible-playbook --check --diff` |
-| 対象環境 | push 時は `dev` 固定、手動時は選択可（dev / prod） |
+| 項目 | dev | prod |
+|---|---|---|
+| トリガー | push / 手動 | 手動 |
+| Runner | self-hosted | ubuntu-latest |
+| 接続 | Vagrant VM へ SSH | AWS SSM |
+| 承認 | なし | GitHub environment `production` |
+| 実行 | dry-run 成功後に deploy | dry-run 成功後、承認されると deploy |
 
-### approve（deploy.yml）
+`apache_version` input を空にした場合は inventory の `apache_version` を使う。値を指定した場合は `-e apache_version=...` で上書きし、deploy 成功後に `ansible/inventory/<env>/group_vars/web.yml` へ同期する。
 
-| 項目 | 内容 |
-|---|---|
-| トリガー | prod 手動実行の dry-run 成功後のみ |
-| 内容 | GitHub environment `production` による承認待ち |
-
-### deploy（deploy.yml）
+### `rollback.yml`
 
 | 項目 | 内容 |
 |---|---|
-| トリガー | dev は dry-run 成功後、prod は approve 成功後 |
-| 実行環境 | dev は self-hosted runner、prod は ubuntu-latest |
-| 内容 | `ansible-playbook`（実際のローリング更新） |
+| トリガー | 手動 |
+| 入力 | `environment`、`rollback_version` |
+| Runner | dev は self-hosted、prod は ubuntu-latest |
+| 内容 | `rolling_update.yml` に `-e apache_version=<rollback_version>` を渡して実行 |
+| 後処理 | 対象 inventory の `apache_version` を rollback version に同期 |
 
+## 共通 action
 
----
+`.github/actions/setup-ansible-deploy/action.yml` は deploy / rollback で共通の準備を行う。
 
-## self-hosted runner のセットアップ
+prod のみ実行する処理:
 
-GitHub Actions の self-hosted runner を WSL2 (Ubuntu-24.04) 上に配置し、Vagrant VM への SSH を可能にしている。
+- `requirements-deploy.txt` のインストール
+- Ansible collections cache の復元
+- `ansible-galaxy collection install -r ansible/requirements.yml`
+- `aws-actions/configure-aws-credentials` による OIDC 認証
+
+dev は self-hosted runner 側に Ansible 実行環境がある前提のため、上記の prod 専用処理はスキップする。
+
+## 必要な GitHub 設定
+
+### Secrets
+
+| Secret | 用途 |
+|---|---|
+| `AWS_ROLE_ARN` | prod deploy / rollback で Assume する IAM role ARN |
+
+### Environments
+
+| Environment | 用途 |
+|---|---|
+| `production` | prod deploy の手動承認 |
+
+## self-hosted runner
+
+dev は Vagrant VM の private network に到達できる self-hosted runner で実行する。
 
 ```bash
-# runner の手動起動（WSL2 内）
-cd ~/actions-runner && ./run.sh
+cd ~/actions-runner
+./run.sh
 ```
+
+runner 上では、Ansible と Vagrant VM への SSH 接続が使える状態にしておく。

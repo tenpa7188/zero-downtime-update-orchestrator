@@ -1,120 +1,169 @@
-# Runbook — ゼロダウンタイム更新
+# Runbook
 
-## 事前確認チェックリスト
+## 事前確認
 
-- [ ] AWS 認証が通ること（`aws sts get-caller-identity`）
-- [ ] EC2 インスタンスが SSM で応答すること（`aws ssm describe-instance-information`）
-- [ ] ALB ターゲットグループのヘルスチェックが Healthy であること
-- [ ] S3 バケット `zduo-ansible-ssm` が存在すること
+### dev
 
----
-
-## ローリング更新（dev）
-
-### 実行前
+- [ ] Vagrant VM が起動している
+- [ ] self-hosted runner が起動している
+- [ ] `lb01` / `web01` / `web02` に SSH できる
+- [ ] `http://192.168.56.10/` へアクセスできる
 
 ```bash
-# Vagrant VM が起動していることを確認
 vagrant status
-
-# ドライラン
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/dev --check --diff
+cd ansible
+ansible all -i inventory/dev -m ping
 ```
 
-### 実行
+### prod
+
+- [ ] Terraform apply 済み
+- [ ] GitHub Secrets `AWS_ROLE_ARN` が設定済み
+- [ ] GitHub environment `production` が設定済み
+- [ ] EC2 が SSM managed instance として見えている
+- [ ] ALB target group が Healthy
+- [ ] S3 bucket `zduo-ansible-ssm` が存在する
 
 ```bash
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/dev
+aws sts get-caller-identity
+aws ssm describe-instance-information --region ap-northeast-1
+cd ansible && ansible-inventory -i inventory/prod --list
 ```
+
+## dev ローリング更新
+
+### 手動実行
+
+```bash
+cd ansible
+ansible-playbook playbooks/rolling_update.yml -i inventory/dev --check --diff
+ansible-playbook playbooks/rolling_update.yml -i inventory/dev
+```
+
+### GitHub Actions
+
+`deploy.yml` を `environment=dev` で手動実行する。`ansible/**` が main に push された場合も dev として dry-run から deploy まで自動実行される。
 
 ### 確認
 
 ```bash
-# LB 経由でレスポンスを確認（1秒ごと）
+# リポジトリルートで実行
 bash scripts/watch_lb.sh
 ```
 
----
+`web01` / `web02` が交互に応答し、更新中も LB 経由の応答が継続することを確認する。
 
-## ローリング更新（prod）
+## prod ローリング更新
 
-### 実行前
+### 手動実行
 
 ```bash
-# AWS 認証
-export AWS_PROFILE=your-profile
-
-# 動的インベントリで EC2 が見えることを確認
-cd ansible && ansible-inventory -i inventory/prod --list
-
-# ドライラン
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/prod --check --diff
+cd ansible
+ansible-playbook playbooks/rolling_update.yml -i inventory/prod --check --diff
+ansible-playbook playbooks/rolling_update.yml -i inventory/prod
 ```
 
-### 実行
+### GitHub Actions
+
+`deploy.yml` を `environment=prod` で手動実行する。
+
+1. dry-run が実行される
+2. GitHub environment `production` の承認待ちになる
+3. 承認後に deploy が実行される
+4. `apache_version` input を指定していた場合、deploy 成功後に `inventory/prod/group_vars/web.yml` が更新される
+
+### 実行中の確認
+
+- ALB target group で対象 instance が 1 台ずつ deregister / register されること
+- register 後に Healthy へ戻ること
+- `serial: 1` により同時に複数台が更新されないこと
+- 失敗時は `any_errors_fatal: true` により後続更新が止まること
+
+## 切り戻し
+
+切り戻しは通常の `rolling_update.yml` に古い `apache_version` を渡して実行する。
+
+### 手動実行
 
 ```bash
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/prod
-```
-
-### 実行中の確認ポイント
-
-- ALB コンソールで各ターゲットの状態を確認（切り離し → Healthy 復帰）
-- `serial: 1` のため 1台ずつ順番に更新される
-- 1台でも healthcheck が失敗すると `any_errors_fatal: true` で全体が停止する
-
----
-
-## 切り戻し（prod）
-
-<!-- TODO: rollback.yml の実行手順を記載する -->
-<!-- TODO: 切り戻し対象バージョンの指定方法を記載する -->
-
-```bash
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/prod \
+cd ansible
+ansible-playbook playbooks/rolling_update.yml -i inventory/prod \
   -e "apache_version=<切り戻し先バージョン>"
 ```
 
----
+dev の場合:
+
+```bash
+cd ansible
+ansible-playbook playbooks/rolling_update.yml -i inventory/dev \
+  -e "apache_version=<切り戻し先バージョン>"
+```
+
+### GitHub Actions
+
+`rollback.yml` を手動実行する。
+
+入力:
+
+- `environment`: `dev` または `prod`
+- `rollback_version`: 切り戻し先の Apache バージョン
+
+実行後、対象 inventory の `apache_version` が `rollback_version` に同期される。
+
+## バージョン確認
+
+```bash
+# dev 例
+ssh -i .vagrant/machines/web01/virtualbox/private_key vagrant@192.168.56.11 \
+  "dpkg -l apache2 | awk '/^ii/{print \$3}'"
+
+# apt candidate 確認
+ssh -i .vagrant/machines/web01/virtualbox/private_key vagrant@192.168.56.11 \
+  "apt-cache policy apache2"
+```
 
 ## トラブルシューティング
 
 ### SSM 接続ができない
 
-<!-- TODO: SSM Agent の状態確認コマンドを記載する -->
-<!-- TODO: IAM インスタンスプロファイルの確認手順を記載する -->
+確認項目:
 
-確認項目：
-- EC2 インスタンスプロファイルに `AmazonSSMManagedInstanceCore` が付いているか
-- SSM Agent がインスタンス上で起動しているか
-- セキュリティグループがアウトバウンド HTTPS（443）を許可しているか
+- EC2 instance profile に `AmazonSSMManagedInstanceCore` が付いている
+- SSM Agent が起動している
+- EC2 から HTTPS outbound が許可されている
+- Ansible SSM 用 S3 bucket へ Get/Put/Delete できる
+- `inventory/prod/group_vars/web.yml` の `ansible_aws_ssm_bucket_name` が正しい
 
-### ALB のターゲット登録解除がタイムアウトする
+### ALB target が Healthy に戻らない
 
-`community.aws.elb_target` の `target_status_timeout` がデフォルト 300 秒。
-ALB のヘルスチェック間隔・閾値の設定と照らし合わせて調整する。
+確認項目:
 
-### ansible-lint が community.aws を解決できない
+- EC2 security group が ALB security group から `web_http_port` を許可している
+- Apache が `web_http_port` で listen している
+- `/index.html` が HTTP 200 を返す
+- ALB target group の health check path が `/index.html`
 
-```bash
-# WSL 上でコレクションをインストール
-source .venv/bin/activate
-ansible-galaxy collection install -r ansible/requirements.yml
-```
+### dev で SSH できない
 
----
+確認項目:
+
+- `vagrant up` 済み
+- self-hosted runner が Vagrant VM に到達できる環境で動いている
+- `ansible/inventory/dev/group_vars/all.yml` の Vagrant private key path が runner から見える
+
+### backup ファイルが増え続ける
+
+`template` task は `backup: true` を使う。世代管理は `backup_cleanup` role で行う。
+
+対象に漏れがある場合は、各 role の defaults に cleanup target を追加する。
 
 ## 関連リソース
 
 | リソース | 確認先 |
 |---|---|
-| ALB | AWS コンソール → EC2 → ロードバランサー |
-| EC2 インスタンス | AWS コンソール → EC2 → インスタンス |
-| SSM セッション履歴 | AWS コンソール → Systems Manager → セッションマネージャー |
-| S3 一時ファイル | `zduo-ansible-ssm` バケット（実行後は自動削除） |
-| GitHub Actions ログ | リポジトリ → Actions タブ |
+| dev LB | `http://192.168.56.10/` |
+| prod ALB | Terraform output `alb_dns_name` |
+| EC2 | AWS Console -> EC2 -> Instances |
+| SSM | AWS Console -> Systems Manager |
+| S3 | `zduo-ansible-ssm` |
+| GitHub Actions | Repository -> Actions |

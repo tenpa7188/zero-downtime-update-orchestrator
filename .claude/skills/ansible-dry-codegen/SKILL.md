@@ -21,6 +21,7 @@ paths:
 
 - 安全な fallback 値は `roles/<role>/defaults/main.yml` に置く。
 - 環境固有の値は `inventory/<env>/group_vars/` に置く。
+- 複数 role が同じ group 向けに共有する値は `ansible/playbooks/group_vars/<group>.yml` に置く。
 - dev/prod に同じ変数値を重複させず、同じ振る舞いなら role default に寄せる。
 - `lb01` のようなホスト名を直書きせず、既存の role 変数があればそれを使う。
 - nginx LB と AWS ALB のように backend が分かれる role は task ファイルを分割する。
@@ -34,7 +35,7 @@ paths:
 - `become: true` は権限が必要な task の近く、または全 task が権限を必要とする block に置く。
 - バックアップ世代数、drain wait、port、package 名のような運用 knob は role defaults に置く。
 - package version、cloud region、SSM 設定、host address のような実環境差分は inventory vars に置く。
-- role 間の隠れた結合を避ける。複数 role が同じ値を必要とする場合は、`apache_port` のような明確な共有変数を作り、各 role 固有の変数はそこから導出する。
+- role 間の隠れた結合を避ける。複数 role が同じ値を必要とする場合は、`web_http_port` のような明確な共有変数を使う。
 - check mode で実行できない task には明示的な guard を置く。
 
 ## レビューチェックリスト

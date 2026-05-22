@@ -2,181 +2,168 @@
 
 ミドルウェアの脆弱性対応を起点にした、**ゼロダウンタイム更新オーケストレーション基盤**のリポジトリです。
 
-実務の運用フローを題材に、以下を自動化・体系化することを目標としています。
+検証環境と本番環境で同じ Ansible playbook を使い、LB から 1 台ずつ切り離し、Apache を更新し、ヘルスチェック後に LB へ戻す流れを自動化します。
 
+```text
+脆弱性検知 → 更新計画 → dev dry-run → dev 更新 → prod dry-run
+         → 承認 → prod ローリング更新 → 動作確認（→ 問題あれば切り戻し）
 ```
-脆弱性検知 → 更新計画 → 検証環境で更新 → 動作確認
-         → 商用ローリング更新 → 動作確認（→ 問題あれば切り戻し）
-```
-
----
 
 ## 技術スタック
 
 | 領域 | 技術 | 用途 |
 |---|---|---|
-| 構成管理・更新自動化 | Ansible | ミドルウェア更新・ローリング更新・切り戻し |
-| ローカル検証環境 | Vagrant + VirtualBox | lb × 1・web × 2 の擬似マルチホスト環境 |
-| 本番インフラ | Terraform + AWS | VPC・EC2・ALB・IAM・S3 の IaC 管理 |
-| CI/CD | GitHub Actions | lint・dry-run・手動承認・デプロイ |
-| 対象ミドルウェア | Apache（Web）/ Nginx（LB・dev のみ） | バージョン管理とローリング更新 |
-| 本番接続 | AWS SSM | SSH ポート不要・インスタンスプロファイルで認証 |
+| 構成管理・更新自動化 | Ansible | Apache 更新、LB 制御、ヘルスチェック、切り戻し |
+| ローカル検証環境 | Vagrant + VirtualBox | `lb01` x 1、`web01` / `web02` x 2 の擬似マルチホスト環境 |
+| 本番インフラ | Terraform + AWS | VPC、EC2、ALB、IAM、S3 の IaC 管理 |
+| CI/CD | GitHub Actions | lint、dry-run、dev 自動 deploy、prod 承認付き deploy、rollback |
+| Web ミドルウェア | Apache | Web サーバ本体。dev / prod 共通でローリング更新対象 |
+| LB | Nginx / AWS ALB | dev は Nginx LB、prod は ALB |
+| 本番接続 | AWS SSM | SSH ポート不要。SSM + S3 ステージングで Ansible 接続 |
 
-> AI 補助機能（脆弱性要約・手順書ドラフト生成・ログ分析など）は将来追加予定。現時点では拡張ポイントのみ設計済み。
+AI 補助機能は未実装です。差し込み候補は [docs/ai_extension_points.md](docs/ai_extension_points.md) に整理しています。
 
----
+## 現在の構成
 
-## 実装状況
-
-| ステップ | 内容 | 状態 |
-|---|---|---|
-| Step 1 | inventory 設計・ansible.cfg・接続確認 | ✅ 完了 |
-| Step 2 | nginx role（インストール・冪等性） | ✅ 完了 |
-| Step 3 | template + handler（設定管理・再起動制御） | ✅ 完了 |
-| Step 4 | healthcheck role + update playbook + tags | ✅ 完了 |
-| Step 5 | serial + lb_control（ローリング更新） | ✅ 完了 |
-| Step 6 | GitHub Actions による CI/CD（lint・dry-run・承認・deploy） | ✅ 完了 |
-| Step 7 | Terraform による AWS prod 環境構築（VPC・EC2・ALB・IAM・S3） | ✅ 完了 |
-| Step 8 | prod 環境での実機ローリング更新テスト | 🚧 進行中 |
-
----
-
-## ディレクトリ構成
-
-```
+```text
 .
 ├── ansible/
 │   ├── ansible.cfg
-│   ├── requirements.yml              # Ansible コレクション（amazon.aws / community.aws）
+│   ├── requirements.yml
 │   ├── inventory/
-│   │   ├── dev/                      # 検証環境（Vagrant VM）
+│   │   ├── dev/
 │   │   │   ├── hosts.yml
 │   │   │   └── group_vars/
 │   │   │       ├── all.yml
 │   │   │       └── web.yml
-│   │   └── prod/                     # 本番環境（AWS EC2）
-│   │       ├── aws_ec2.yml           # 動的インベントリ（amazon.aws.aws_ec2）
+│   │   └── prod/
+│   │       ├── aws_ec2.yml
 │   │       └── group_vars/
-│   │           ├── all.yml           # lb_control_type: alb など
-│   │           └── web.yml           # SSM 接続設定・apache バージョン
-│   ├── roles/
-│   │   ├── nginx/                    # LB 用 Nginx（dev 検証環境のみ）
-│   │   ├── apache/                   # Web サーバ Apache（dev / prod 共通）
-│   │   ├── healthcheck/              # サービス起動確認・HTTP 疎通確認
-│   │   └── lb_control/               # LB 切り離し・組み込み（Nginx / ALB 対応）
-│   └── playbooks/
-│       ├── rolling_update.yml        # メインのローリング更新（dev / prod 共通）
-│       ├── update.yml
-│       └── site.yml
+│   │           ├── all.yml
+│   │           └── web.yml
+│   ├── playbooks/
+│   │   ├── group_vars/
+│   │   │   └── web.yml        # web_http_port など playbook 共通値
+│   │   ├── rolling_update.yml # dev / prod 共通のローリング更新
+│   │   ├── site.yml
+│   │   └── update.yml         # LB 用 Nginx 更新
+│   └── roles/
+│       ├── apache/            # Web サーバ Apache
+│       ├── backup_cleanup/    # Ansible backup ファイルの世代管理
+│       ├── healthcheck/       # systemd + HTTP ヘルスチェック
+│       ├── lb_control/        # Nginx LB / ALB の drain・restore
+│       └── nginx/             # dev LB 用 Nginx
 ├── terraform/
 │   └── environments/
 │       └── prod/
-│           ├── locals.tf             # common_tags
-│           ├── variables.tf          # リージョン・プロジェクト名・AMI など
-│           ├── provider.tf
-│           ├── main.tf               # VPC・SG・EC2・ALB
-│           ├── s3.tf                 # Ansible SSM ステージング用 S3
-│           ├── iam_github.tf         # GitHub Actions OIDC ロール
-│           ├── iam_ec2.tf            # EC2 インスタンスプロファイル（SSM + S3）
-│           └── outputs.tf
 ├── scripts/
-│   ├── check_vulnerability.sh        # apt でバージョン比較・脆弱性検知
-│   └── watch_lb.sh                   # LB へ 1 秒ごとにリクエストし応答サーバを表示
+│   ├── check_vulnerability.sh
+│   └── watch_lb.sh
 ├── docs/
-│   ├── architecture.md               # 設計方針・ロール設計
-│   ├── runbook.md                    # 運用手順書（ローリング更新・切り戻し）
-│   └── workflow.md                   # CI/CD ワークフロー詳細
-├── Vagrantfile                       # lb01・web01・web02 の VM 定義
-├── requirements-lint.txt             # yamllint・ansible-lint のバージョン固定
-├── requirements-deploy.txt           # boto3・botocore のバージョン固定
-└── .github/
-    └── workflows/
-        ├── lint.yml                  # yamllint + ansible-lint
-        ├── deploy.yml                # dev: dry-run → 実行 / prod: dry-run → 承認 → 実行
-        └── rollback.yml              # 切り戻し（手動実行）
+│   ├── ai_extension_points.md
+│   ├── architecture.md
+│   ├── runbook.md
+│   └── workflow.md
+├── .github/
+│   ├── actions/
+│   │   └── setup-ansible-deploy/
+│   └── workflows/
+│       ├── deploy.yml
+│       ├── lint.yml
+│       ├── rollback.yml
+│       └── self-hosted-test.yml
+├── .claude/
+│   └── skills/
+│       └── ansible-dry-codegen/
+├── Vagrantfile
+├── requirements-deploy.txt
+└── requirements-lint.txt
 ```
 
----
+## 環境差分
 
-## 環境別の接続方式
+| 環境 | LB | Web 接続 | Runner | deploy 承認 |
+|---|---|---|---|---|
+| dev | Nginx on `lb01` | SSH（Vagrant 鍵） | self-hosted | なし |
+| prod | AWS ALB | AWS SSM | ubuntu-latest | GitHub environment `production` |
 
-| 環境 | LB | Web 接続 | GitHub Actions Runner |
-|---|---|---|---|
-| dev | Nginx（Vagrant VM） | SSH（Vagrant 鍵） | self-hosted（WSL2） |
-| prod | AWS ALB | AWS SSM（ポート22不要） | ubuntu-latest（OIDC 認証） |
+共通の Web backend port は [ansible/playbooks/group_vars/web.yml](ansible/playbooks/group_vars/web.yml) の `web_http_port` で管理します。Apache の listen、Nginx upstream、healthcheck はこの値を参照します。
 
----
+## ローカル検証環境
 
-## ローカル検証環境（dev）
+Vagrant + VirtualBox で 3 台の VM を起動します。
 
-Vagrant + VirtualBox で 3VM 構成を起動します。
-
-```
+```text
 192.168.56.10  lb01   # Nginx ロードバランサ
 192.168.56.11  web01  # Apache Web サーバ
 192.168.56.12  web02  # Apache Web サーバ
 ```
 
 ```bash
-# VM 起動
 vagrant up
 
-# LB への応答確認（1秒ごとにポーリング）
+cd ansible
+ansible-playbook playbooks/rolling_update.yml -i inventory/dev --check --diff
+ansible-playbook playbooks/rolling_update.yml -i inventory/dev
+```
+
+LB 経由の応答サーバを確認する場合:
+
+```bash
+# リポジトリルートで実行
 bash scripts/watch_lb.sh
 ```
 
----
+## 本番環境
 
-## 主要コマンド
-
-### dev 環境
-
-```bash
-# ドライラン
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/dev --check --diff
-
-# ローリング更新実行
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/dev
-```
-
-### prod 環境（AWS）
-
-```bash
-# 事前：AWS 認証
-export AWS_PROFILE=your-profile
-
-# ドライラン
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/prod --check --diff
-
-# ローリング更新実行
-cd ansible && ansible-playbook playbooks/rolling_update.yml \
-  -i inventory/prod
-```
-
-### Terraform（prod インフラ管理）
+Terraform は `terraform/environments/prod` にあります。EC2 は SSH を開けず、GitHub Actions から AWS OIDC で認証し、Ansible は SSM 接続で実行します。
 
 ```bash
 cd terraform/environments/prod
-
 terraform init
 terraform plan
 terraform apply
 ```
 
-### Lint
+`terraform output github_actions_role_arn` の値を GitHub Secrets の `AWS_ROLE_ARN` に設定します。
+
+## GitHub Actions
+
+- `lint.yml`: `ansible/**` 変更時に `yamllint` と `ansible-lint`
+- `deploy.yml`: dry-run 後にローリング更新
+  - push 時: dev 固定、承認なしで dry-run から deploy まで実行
+  - 手動実行 dev: 承認なし
+  - 手動実行 prod: `production` environment 承認あり
+- `rollback.yml`: 手動実行で指定した Apache バージョンへ切り戻し
+- `self-hosted-test.yml`: self-hosted runner の疎通確認
+
+詳細は [docs/workflow.md](docs/workflow.md) を参照してください。
+
+## 主要コマンド
 
 ```bash
-cd ansible && yamllint ./
-cd ansible && ansible-lint playbooks/
-```
+# Ansible lint
+cd ansible
+yamllint ./
+ansible-lint playbooks/
 
----
+# dev dry-run / deploy
+ansible-playbook playbooks/rolling_update.yml -i inventory/dev --check --diff
+ansible-playbook playbooks/rolling_update.yml -i inventory/dev
+
+# prod inventory 確認 / dry-run / deploy
+ansible-inventory -i inventory/prod --list
+ansible-playbook playbooks/rolling_update.yml -i inventory/prod --check --diff
+ansible-playbook playbooks/rolling_update.yml -i inventory/prod
+
+# rollback
+ansible-playbook playbooks/rolling_update.yml -i inventory/prod \
+  -e "apache_version=<切り戻し先バージョン>"
+```
 
 ## ドキュメント
 
-- [docs/architecture.md](docs/architecture.md) — 設計方針・ロール設計・主要な設計判断
-- [docs/runbook.md](docs/runbook.md) — 運用手順書（ローリング更新・切り戻し・トラブルシューティング）
-- [docs/workflow.md](docs/workflow.md) — CI/CD ワークフロー詳細
+- [docs/architecture.md](docs/architecture.md) — 設計方針、role 責務、変数配置
+- [docs/runbook.md](docs/runbook.md) — 運用手順、切り戻し、トラブルシューティング
+- [docs/workflow.md](docs/workflow.md) — GitHub Actions の流れ
+- [docs/ai_extension_points.md](docs/ai_extension_points.md) — AI 機能を後付けする候補
