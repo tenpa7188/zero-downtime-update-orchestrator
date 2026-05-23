@@ -16,3 +16,6 @@
 
 # local notification config
 config/check_vulnerability.env
+
+# logs
+logs/*
