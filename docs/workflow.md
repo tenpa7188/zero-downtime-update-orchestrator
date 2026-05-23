@@ -29,7 +29,7 @@ workflow_dispatch: rollback.yml
 |---|---|
 | トリガー | cron などの定期実行 |
 | 設定 | `config/check_vulnerability.env` |
-| 内容 | Apache 更新候補の検知、GitHub Issue 作成、Slack 通知 |
+| 内容 | `PACKAGE_NAME` の更新候補検知、GitHub Issue 作成、Slack 通知 |
 | 実行しないこと | `deploy.yml` の自動起動 |
 
 ### `lint.yml`

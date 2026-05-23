@@ -37,8 +37,8 @@ cd ansible && ansible-inventory -i inventory/prod --list
 実行内容:
 
 1. 代表 Web サーバへ SSH する
-2. `dpkg -l apache2` で現行バージョンを取得する
-3. `apt-get update` 後に `apt-cache policy apache2` で candidate を取得する
+2. `dpkg -l "${PACKAGE_NAME}"` で現行バージョンを取得する
+3. `apt-get update` 後に `apt-cache policy "${PACKAGE_NAME}"` で candidate を取得する
 4. 現行と candidate が異なる場合、重複 Issue がなければ作成する
 5. `SLACK_WEBHOOK_URL` が設定されていれば Slack に通知する
 
@@ -56,6 +56,8 @@ bash scripts/check_vulnerability.sh
 ```bash
 config/check_vulnerability.env
 ```
+
+`PACKAGE_NAME` を変更すると、`apache2` 以外の apt パッケージでも同じ検知・通知フローを使える。
 
 事前確認:
 

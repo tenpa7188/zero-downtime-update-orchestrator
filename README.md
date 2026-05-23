@@ -7,7 +7,7 @@
 ```text
 脆弱性検知 → Slack / Issue 通知 → dev 更新承認 → dev dry-run / 更新
          → dev 確認 → prod dry-run → 承認 → prod ローリング更新
-         → 動作確認（→ 問題あれば切り戻し）
+         → prod 確認（→ 問題あれば切り戻し）
 ```
 
 ## 技術スタック
@@ -94,7 +94,7 @@ AI 補助機能は未実装です。差し込み候補は [docs/ai_extension_poi
 
 ## アップデート検知
 
-`scripts/check_vulnerability.sh` は代表 Web サーバの `apache2` 現行バージョンと apt candidate を比較します。更新候補がある場合は GitHub Issue を作成し、Slack webhook が設定されていれば通知します。検知しても `deploy.yml` は実行しません。
+`scripts/check_vulnerability.sh` は代表 Web サーバ上で `PACKAGE_NAME` の現行バージョンと apt candidate を比較します。デフォルトの対象は `apache2` です。更新候補がある場合は GitHub Issue を作成し、Slack webhook が設定されていれば通知します。検知しても `deploy.yml` は実行しません。
 
 実値は git 管理外の `config/check_vulnerability.env` に置きます。設定項目の雛形は `config/check_vulnerability.env.example` です。
 
