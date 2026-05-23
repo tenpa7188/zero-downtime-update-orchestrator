@@ -1,9 +1,5 @@
 ---
 ansible_python_interpreter: /usr/bin/python3
 ansible_user: vagrant
-vagrant_private_key_base: >-
-  /mnt/c/source/zero-downtime-update-orchestrator/.vagrant/machines
-ansible_ssh_private_key_file: >-
-  {{ vagrant_private_key_base }}/{{ inventory_hostname }}/virtualbox/private_key
 lb_control_type: nginx
 lb_control_drain_wait: 80
