@@ -13,3 +13,6 @@
 
 # venv
 .venv
+
+# local notification config
+config/check_vulnerability.env

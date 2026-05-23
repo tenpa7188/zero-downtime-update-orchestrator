@@ -30,6 +30,40 @@ aws ssm describe-instance-information --region ap-northeast-1
 cd ansible && ansible-inventory -i inventory/prod --list
 ```
 
+## アップデート検知
+
+`scripts/check_vulnerability.sh` を cron などから定期実行する。スクリプトは `config/check_vulnerability.env` を読み込み、更新候補がある場合に GitHub Issue 作成と Slack 通知を行う。
+
+実行内容:
+
+1. 代表 Web サーバへ SSH する
+2. `dpkg -l apache2` で現行バージョンを取得する
+3. `apt-get update` 後に `apt-cache policy apache2` で candidate を取得する
+4. 現行と candidate が異なる場合、重複 Issue がなければ作成する
+5. `SLACK_WEBHOOK_URL` が設定されていれば Slack に通知する
+
+既に同じ candidate の Issue が開いている場合、デフォルトでは Slack へ再通知しない。毎回通知したい場合は `NOTIFY_EXISTING_ISSUE="true"` を設定する。
+
+```bash
+# リポジトリルートで実行
+bash scripts/check_vulnerability.sh
+```
+
+更新検知時も終了コードは `0`。SSH 失敗、candidate 取得失敗、GitHub Issue 作成失敗、Slack 通知失敗は運用上の失敗として `1` を返す。
+
+設定ファイル:
+
+```bash
+config/check_vulnerability.env
+```
+
+事前確認:
+
+```bash
+gh auth status
+curl --version
+```
+
 ## dev ローリング更新
 
 ### 手動実行

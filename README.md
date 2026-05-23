@@ -5,8 +5,9 @@
 検証環境と本番環境で同じ Ansible playbook を使い、LB から 1 台ずつ切り離し、Apache を更新し、ヘルスチェック後に LB へ戻す流れを自動化します。
 
 ```text
-脆弱性検知 → 更新計画 → dev dry-run → dev 更新 → prod dry-run
-         → 承認 → prod ローリング更新 → 動作確認（→ 問題あれば切り戻し）
+脆弱性検知 → Slack / Issue 通知 → dev 更新承認 → dev dry-run / 更新
+         → dev 確認 → prod dry-run → 承認 → prod ローリング更新
+         → 動作確認（→ 問題あれば切り戻し）
 ```
 
 ## 技術スタック
@@ -59,6 +60,8 @@ AI 補助機能は未実装です。差し込み候補は [docs/ai_extension_poi
 ├── scripts/
 │   ├── check_vulnerability.sh
 │   └── watch_lb.sh
+├── config/
+│   └── check_vulnerability.env.example
 ├── docs/
 │   ├── ai_extension_points.md
 │   ├── architecture.md
@@ -88,6 +91,23 @@ AI 補助機能は未実装です。差し込み候補は [docs/ai_extension_poi
 | prod | AWS ALB | AWS SSM | ubuntu-latest | GitHub environment `production` |
 
 共通の Web backend port は [ansible/playbooks/group_vars/web.yml](ansible/playbooks/group_vars/web.yml) の `web_http_port` で管理します。Apache の listen、Nginx upstream、healthcheck はこの値を参照します。
+
+## アップデート検知
+
+`scripts/check_vulnerability.sh` は代表 Web サーバの `apache2` 現行バージョンと apt candidate を比較します。更新候補がある場合は GitHub Issue を作成し、Slack webhook が設定されていれば通知します。検知しても `deploy.yml` は実行しません。
+
+実値は git 管理外の `config/check_vulnerability.env` に置きます。設定項目の雛形は `config/check_vulnerability.env.example` です。
+
+```bash
+# リポジトリルートで実行
+bash scripts/check_vulnerability.sh
+```
+
+cron では環境変数を並べず、リポジトリルートへ移動してスクリプトを呼び出します。
+
+```cron
+0 9 * * * cd /mnt/c/source/zero-downtime-update-orchestrator && bash scripts/check_vulnerability.sh
+```
 
 ## ローカル検証環境
 

@@ -3,6 +3,9 @@
 ## 全体フロー
 
 ```text
+cron: check_vulnerability.sh
+  └─ GitHub Issue / Slack 通知
+
 push to main (ansible/**)
   ├─ lint.yml
   └─ deploy.yml
@@ -19,6 +22,15 @@ workflow_dispatch: rollback.yml
 ```
 
 ## workflows
+
+### `check_vulnerability.sh`
+
+| 項目 | 内容 |
+|---|---|
+| トリガー | cron などの定期実行 |
+| 設定 | `config/check_vulnerability.env` |
+| 内容 | Apache 更新候補の検知、GitHub Issue 作成、Slack 通知 |
+| 実行しないこと | `deploy.yml` の自動起動 |
 
 ### `lint.yml`
 
