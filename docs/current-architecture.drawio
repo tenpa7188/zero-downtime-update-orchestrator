@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="zduo-current-architecture" name="current-architecture">
-        <mxGraphModel dx="1856" dy="1113" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="1184" dy="1113" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -10,7 +10,7 @@
                 <mxCell id="issue" value="GitHub Issue 自動作成 &amp;amp;&amp;nbsp;&lt;div&gt;Slack バージョンアップを通知&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#F3E8FF;strokeColor=#7E22CE;align=center;verticalAlign=middle;" parent="1" vertex="1">
                     <mxGeometry x="350" y="60" width="240" height="90" as="geometry"/>
                 </mxCell>
-                <mxCell id="actions" value="GitHub Actions&lt;br&gt;&lt;div&gt;環境選択&lt;/div&gt;&lt;div&gt;デプロイ / ロールバック&lt;/div&gt;&lt;div&gt;※prodはdry-run後承認が必要&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#EDE9FE;strokeColor=#6D28D9;align=center;verticalAlign=middle;" parent="1" vertex="1">
+                <mxCell id="actions" value="GitHub Actions&lt;br&gt;&lt;div&gt;環境選択(dev / prod)&lt;/div&gt;&lt;div&gt;デプロイ(dry-run &amp;amp; rolling update)&amp;nbsp;&lt;/div&gt;&lt;div&gt;ロールバック&lt;/div&gt;&lt;div&gt;※prodはdry-run後承認が必要&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#EDE9FE;strokeColor=#6D28D9;align=center;verticalAlign=middle;" parent="1" vertex="1">
                     <mxGeometry x="650" y="60" width="260" height="90" as="geometry"/>
                 </mxCell>
                 <mxCell id="dev_container" value="検証環境 dev&#xa;Vagrant + VirtualBox" style="rounded=1;whiteSpace=wrap;html=1;fontSize=18;fontStyle=1;fillColor=none;strokeColor=#000000;align=left;verticalAlign=top;spacingLeft=18;spacingTop=12;" parent="1" vertex="1">
